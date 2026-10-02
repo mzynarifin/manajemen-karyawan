@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-canvas text-ink text-sm;
+  }
+
+  /* Focus is always visible (PRD section 71). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-600 ring-offset-2 ring-offset-canvas;
+  }
+}
+
+@layer components {
+  .field-label {
+    @apply block text-[13px] font-medium text-ink;
+  }
+
+  .field-control {
+    @apply block h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink
+      placeholder:text-muted/70 transition-colors duration-150
+      focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600
+      disabled:cursor-not-allowed disabled:bg-canvas disabled:text-muted;
+  }
+
+  .field-hint {
+    @apply mt-1 text-xs text-muted;
+  }
+
+  .field-error {
+    @apply mt-1 text-xs font-medium text-red-600;
+  }
+}

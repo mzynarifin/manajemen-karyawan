@@ -1,0 +1,1748 @@
+{
+  "name": "HRIS Backend",
+  "_postman_id": "b7a1c0f2-4d31-4c1e-9a55-hris00000001",
+  "description": "HRIS PT Sentra Karya Digital - backend API tests (PRD section 81-88).\n\nHow to use:\n1. npm run dev (server on http://localhost:3000)\n2. Import this collection + the matching environment\n3. Run folder 00 Setup first; each role folder logs in its own account.\n\nSessions are cookie based (Supabase SSR), so Postman's cookie jar keeps the\nsession between requests. Unauthorized requests remove the Cookie header in a\npre-request script instead of relying on a second collection.",
+  "info": {
+    "_postman_id": "b7a1c0f2-4d31-4c1e-9a55-hris00000001",
+    "name": "HRIS Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "adminEmail", "value": "admin@sentraakarya.test" },
+    { "key": "adminPassword", "value": "Admin#2026hris" },
+    { "key": "employeeEmail", "value": "employee01@sentraakarya.test" },
+    { "key": "employeePassword", "value": "Employee#12026" }
+  ],
+  "item": [
+    {
+      "name": "00 Setup",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success = true', () => pm.expect(body.success).to.eql(true));",
+                  "pm.test('role = admin', () => pm.expect(body.data.profile.role).to.eql('admin'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my profile (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('has profile', () => pm.expect(pm.response.json().data.profile.id).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        },
+        {
+          "name": "Login employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('role = employee', () => pm.expect(body.data.profile.role).to.eql('employee'));",
+                  "pm.test('has employee record', () => pm.expect(body.data.profile).to.be.an('object'));",
+                  "pm.environment.set('employeeId', body.data.employee ? body.data.employee.id : '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my employee record",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/employees/me", "host": ["{{baseUrl}}"], "path": ["api", "employees", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('employee_code present', () => pm.expect(body.data.employee_code).to.match(/^EMP-\\d{4}$/));",
+                  "pm.environment.set('employeeId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout employee",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login with wrong password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('INVALID_CREDENTIALS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with invalid body",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unauthorized: profile without session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": ["pm.request.headers.remove('Cookie');"] }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('AUTH_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Departments (admin)",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "List departments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/departments?page=1&limit=20&sort=name&order=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "sort", "value": "name" },
+                { "key": "order", "value": "asc" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('pagination present', () => pm.expect(body.pagination).to.have.property('total'));",
+                  "if (body.data && body.data.length) pm.environment.set('departmentId', body.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create department",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Legal\",\n  \"description\": \"Created from Postman\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/departments", "host": ["{{baseUrl}}"], "path": ["api", "departments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('name echoed', () => pm.expect(body.data.name).to.eql('Legal'));",
+                  "pm.environment.set('newDepartmentId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create duplicate department (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Legal\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/departments", "host": ["{{baseUrl}}"], "path": ["api", "departments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('DUPLICATE_RESOURCE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get department by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/departments/{{newDepartmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments", "{{newDepartmentId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('newDepartmentId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update department",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated from Postman\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/departments/{{newDepartmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments", "{{newDepartmentId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get department with invalid uuid (negative)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/departments/not-a-uuid", "host": ["{{baseUrl}}"], "path": ["api", "departments", "not-a-uuid"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Employees (admin)",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "List employees (search + filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees?search=EMP&status=active&page=1&limit=20&sort=employee_code&order=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees"],
+              "query": [
+                { "key": "search", "value": "EMP" },
+                { "key": "status", "value": "active" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "sort", "value": "employee_code" },
+                { "key": "order", "value": "asc" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('list returned', () => pm.expect(body.data).to.be.an('array'));",
+                  "if (body.data && body.data.length) pm.environment.set('employeeId', body.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.hire@sentraakarya.test\",\n  \"full_name\": \"Rangga Wicoco\",\n  \"employment_type\": \"permanent\",\n  \"base_salary\": 7500000,\n  \"position\": \"Data Analyst\",\n  \"join_date\": \"2026-01-15\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('employee_code generated', () => pm.expect(body.data.employee_code).to.match(/^EMP-\\d{4}$/));",
+                  "pm.test('temporary password returned once', () => pm.expect(body.data.temporary_password).to.be.a('string'));",
+                  "pm.environment.set('createdEmployeeId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create employee with duplicate email (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.hire@sentraakarya.test\",\n  \"full_name\": \"Duplikat Pegawai\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('EMAIL_ALREADY_EXISTS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create employee with negative salary (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"gaji.negatif@sentraakarya.test\",\n  \"full_name\": \"Salary Negatif\",\n  \"base_salary\": -1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get employee by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/{{createdEmployeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "{{createdEmployeeId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update employee",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"position\": \"Senior Data Analyst\",\n  \"base_salary\": 8200000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/{{createdEmployeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "{{createdEmployeeId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('position updated', () => pm.expect(pm.response.json().data.position).to.eql('Senior Data Analyst'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deactivate employee (soft delete)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"inactive\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/{{createdEmployeeId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "{{createdEmployeeId}}", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status = inactive', () => pm.expect(pm.response.json().data.status).to.eql('inactive'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivate employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"active\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/{{createdEmployeeId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "{{createdEmployeeId}}", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get unknown employee (negative)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "00000000-0000-0000-0000-000000000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('EMPLOYEE_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Employees (employee access)",
+      "item": [
+        {
+          "name": "Login employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Employee cannot list all employees (unauthorized)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee cannot create employee (unauthorized)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"self.created@sentraakarya.test\",\n  \"full_name\": \"Self Created\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee updates own phone and address",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"081298765432\",\n  \"address\": \"Jl.-update No. 9, Jakarta\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/employees/me", "host": ["{{baseUrl}}"], "path": ["api", "employees", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('phone updated', () => pm.expect(pm.response.json().data.phone).to.eql('081298765432'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee cannot change base_salary (negative)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"base_salary\": 99999999\n}" },
+            "url": { "raw": "{{baseUrl}}/api/employees/me", "host": ["{{baseUrl}}"], "path": ["api", "employees", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee cannot read another employee (RLS)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "00000000-0000-0000-0000-000000000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('RLS hid the row', () => pm.expect(pm.response.json().error).to.eql('EMPLOYEE_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee updates own profile name",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"full_name\": \"Andi Saputra\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout employee",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attendance (employee)",
+      "item": [
+        {
+          "name": "Login employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Check out without check in (negative, run before check-in)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance/check-out",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance", "check-out"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.be.oneOf(['CHECK_IN_REQUIRED', 'CHECK_OUT_ALREADY_EXISTS']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check in",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance/check-in",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance", "check-in"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created or already checked in', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));",
+                  "const body = pm.response.json();",
+                  "pm.test('status is present or late', () => pm.expect(body.data ? body.data.status : 'present').to.be.oneOf(['present', 'late']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check in twice (negative)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance/check-in",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance", "check-in"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('ATTENDANCE_ALREADY_EXISTS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check out",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance/check-out",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance", "check-out"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('working_minutes computed', () => pm.expect(pm.response.json().data.working_minutes).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List own attendance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('only own rows', () => {",
+                  "  const own = pm.environment.get('employeeId');",
+                  "  (body.data || []).forEach(row => pm.expect(row.employee_id).to.eql(own));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Leave",
+      "item": [
+        {
+          "name": "Login employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Get own leave balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "balance"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('remaining_leave present', () => pm.expect(body.data.remaining_leave).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit leave request",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leave_type\": \"annual\",\n  \"start_date\": \"2026-11-02\",\n  \"end_date\": \"2026-11-03\",\n  \"reason\": \"Urusan keluarga dari Postman\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/leave", "host": ["{{baseUrl}}"], "path": ["api", "leave"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('status forced to pending', () => pm.expect(body.data.status).to.eql('pending'));",
+                  "pm.test('total_days computed', () => pm.expect(body.data.total_days).to.eql(2));",
+                  "pm.environment.set('leaveId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit leave with end before start (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leave_type\": \"annual\",\n  \"start_date\": \"2026-12-10\",\n  \"end_date\": \"2026-12-01\",\n  \"reason\": \"Tanggal terbalik\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/leave", "host": ["{{baseUrl}}"], "path": ["api", "leave"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit leave exceeding balance (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leave_type\": \"annual\",\n  \"start_date\": \"2027-01-01\",\n  \"end_date\": \"2027-12-31\",\n  \"reason\": \"Melebihi saldo cuti tahunan\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/leave", "host": ["{{baseUrl}}"], "path": ["api", "leave"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('LEAVE_BALANCE_INSUFFICIENT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee cannot approve own leave (unauthorized)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/{{leaveId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "{{leaveId}}", "approve"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee submits leave for review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leave_type\": \"sick\",\n  \"start_date\": \"2026-10-05\",\n  \"end_date\": \"2026-10-05\",\n  \"reason\": \"Sakit, submits dari Postman\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/leave", "host": ["{{baseUrl}}"], "path": ["api", "leave"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('201 Created', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "List all leave requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leave?status=pending&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave"],
+              "query": [
+                { "key": "status", "value": "pending" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.length) pm.environment.set('leaveId', body.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve leave",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/{{leaveId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "{{leaveId}}", "approve"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status = approved', () => pm.expect(body.data.status).to.eql('approved'));",
+                  "pm.test('reviewed_by set', () => pm.expect(body.data.reviewed_by).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve leave twice (negative)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/{{leaveId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "{{leaveId}}", "approve"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('LEAVE_ALREADY_REVIEWED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject leave without reason (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/{{leaveId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "{{leaveId}}", "reject"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject leave",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Beban kerja sedang tinggi\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/{{leaveId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "{{leaveId}}", "reject"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status rejected or already reviewed', () => pm.expect([200, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee leave balance after review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leave/balance?employee_id={{employeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leave", "balance"],
+              "query": [{ "key": "employee_id", "value": "{{employeeId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json().data;",
+                  "pm.test('balance consistent', () => pm.expect(b.remaining_leave).to.eql(b.total_leave - b.used_leave));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "List payrolls (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create payroll (draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"period_month\": 10,\n  \"period_year\": 2026,\n  \"base_salary\": 12000000,\n  \"allowance\": 1000000,\n  \"bonus\": 500000,\n  \"deduction\": 200000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payroll", "host": ["{{baseUrl}}"], "path": ["api", "payroll"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('net_salary computed', () => pm.expect(body.data.net_salary).to.eql(13300000));",
+                  "pm.test('status draft', () => pm.expect(body.data.status).to.eql('draft'));",
+                  "pm.environment.set('payrollId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create duplicate payroll (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"period_month\": 10,\n  \"period_year\": 2026,\n  \"base_salary\": 12000000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payroll", "host": ["{{baseUrl}}"], "path": ["api", "payroll"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('PAYROLL_ALREADY_EXISTS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create payroll with invalid period (negative)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"period_month\": 13,\n  \"period_year\": 2026\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payroll", "host": ["{{baseUrl}}"], "path": ["api", "payroll"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update draft payroll",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"bonus\": 750000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll/{{payrollId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll", "{{payrollId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('net recalculated', () => pm.expect(pm.response.json().data.net_salary).to.eql(13550000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish payroll",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll/{{payrollId}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll", "{{payrollId}}", "publish"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status published', () => pm.expect(body.data.status).to.eql('published'));",
+                  "pm.test('published_at stamped', () => pm.expect(body.data.published_at).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish twice (negative)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll/{{payrollId}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll", "{{payrollId}}", "publish"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('PAYROLL_ALREADY_PUBLISHED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update published payroll (negative)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"bonus\": 9000000\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll/{{payrollId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll", "{{payrollId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('error code', () => pm.expect(pm.response.json().error).to.eql('PAYROLL_ALREADY_PUBLISHED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"{{employeePassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Employee sees only published payroll",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('no draft rows', () => {",
+                  "  (body.data || []).forEach(row => pm.expect(row.status).to.eql('published'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee reads own payslip",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payroll/{{payrollId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payroll", "{{payrollId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('payslip shape', () => pm.expect(body.data.employee.employee_code).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee cannot create payroll (unauthorized)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"period_month\": 11,\n  \"period_year\": 2026,\n  \"base_salary\": 100\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payroll", "host": ["{{baseUrl}}"], "path": ["api", "payroll"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List own notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('list returned', () => pm.expect(body.data).to.be.an('array'));",
+                  "if (body.data && body.data.length) pm.environment.set('notificationId', body.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark one notification as read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "read"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('is_read = true', () => pm.expect(pm.response.json().data.is_read).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark all notifications as read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/read-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "read-all"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unauthorized: notifications without session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/notifications", "host": ["{{baseUrl}}"], "path": ["api", "notifications"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": ["pm.request.headers.remove('Cookie');"] }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports & Audit",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Employee report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?type=employee",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [{ "key": "type", "value": "employee" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('counts present', () => { pm.expect(d.total).to.be.a('number'); pm.expect(d.active).to.be.a('number'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendance report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?type=attendance&date_from=2026-01-01&date_to=2026-12-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [
+                { "key": "type", "value": "attendance" },
+                { "key": "date_from", "value": "2026-01-01" },
+                { "key": "date_to", "value": "2026-12-31" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leave report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?type=leave",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [{ "key": "type", "value": "leave" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payroll report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?type=payroll&period_month=10&period_year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [
+                { "key": "type", "value": "payroll" },
+                { "key": "period_month", "value": "10" },
+                { "key": "period_year", "value": "2026" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Report with invalid type (negative)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?type=unknown",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [{ "key": "type", "value": "unknown" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/audit-logs?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "audit-logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
