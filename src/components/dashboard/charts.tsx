@@ -15,6 +15,22 @@ import {
 
 const COLORS = ['#047857', '#059669', '#10b981', '#a7f3d0', '#065f46', '#6ee7b7']
 
+// recharts needs literal strings, but CSS variables resolve in SVG fill/stroke,
+// so grid, ticks and cursor re-theme with the rest of the app.
+const LINE = 'rgb(var(--line))'
+const MUTED = 'rgb(var(--muted))'
+const CANVAS = 'rgb(var(--canvas))'
+const SURFACE = 'rgb(var(--surface))'
+const INK = 'rgb(var(--ink))'
+
+const TOOLTIP_STYLE = {
+  borderRadius: 8,
+  border: `1px solid ${LINE}`,
+  background: SURFACE,
+  color: INK,
+  fontSize: 12,
+}
+
 /** Two charts maximum (PRD section 17): today's attendance and headcount mix. */
 export function AttendanceChart({ present, late, leave }: { present: number; late: number; leave: number }) {
   const data = [
@@ -31,13 +47,10 @@ export function AttendanceChart({ present, late, leave }: { present: number; lat
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
-          <CartesianGrid horizontal={false} stroke="#e4e4e7" />
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: '#71717a' }} axisLine={false} tickLine={false} />
-          <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 12, fill: '#71717a' }} axisLine={false} tickLine={false} />
-          <Tooltip
-            cursor={{ fill: '#f7f8fa' }}
-            contentStyle={{ borderRadius: 8, border: '1px solid #e4e4e7', fontSize: 12 }}
-          />
+          <CartesianGrid horizontal={false} stroke={LINE} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: MUTED }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 12, fill: MUTED }} axisLine={false} tickLine={false} />
+          <Tooltip cursor={{ fill: CANVAS }} contentStyle={TOOLTIP_STYLE} />
           <Bar dataKey="value" name="Employees" fill="#047857" radius={[0, 4, 4, 0]} barSize={18} />
         </BarChart>
       </ResponsiveContainer>
@@ -62,7 +75,7 @@ export function DepartmentChart({ items }: { items: Array<{ id: string; name: st
             ))}
           </Pie>
           <Tooltip
-            contentStyle={{ borderRadius: 8, border: '1px solid #e4e4e7', fontSize: 12 }}
+            contentStyle={TOOLTIP_STYLE}
             formatter={(value, name) => [`${value} employees`, String(name)]}
           />
         </PieChart>

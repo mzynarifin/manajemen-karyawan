@@ -158,7 +158,7 @@ export function LeaveRequestDialog({
           </Field>
 
           {remaining !== null && (
-            <p className={`text-[13px] ${exceedsBalance ? 'font-medium text-red-600' : 'text-muted'}`}>
+            <p className={`text-[13px] ${exceedsBalance ? 'font-medium text-red-600 dark:text-red-400' : 'text-muted'}`}>
               {exceedsBalance
                 ? 'Requested leave exceeds your remaining balance.'
                 : `Remaining balance after approval: ${Math.max(0, remaining - totalDays)} day(s).`}
@@ -166,7 +166,7 @@ export function LeaveRequestDialog({
           )}
 
           {serverError && (
-            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-[13px] text-red-700">
+            <p role="alert" className="alert-error">
               {serverError}
             </p>
           )}

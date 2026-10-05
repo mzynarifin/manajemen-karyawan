@@ -35,7 +35,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             {toast.tone === 'success' ? (
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden />
             ) : (
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" aria-hidden />
             )}
             <p className="flex-1 text-[13px] text-ink">{toast.message}</p>
             <button

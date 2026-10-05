@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import { ProfileAvatar } from '@/components/ui/avatar'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { MobileSidebar } from '@/components/layout/app-sidebar'
 import type { Role } from '@/types'
 
@@ -28,6 +29,8 @@ export function TopHeader({ role, name, avatarUrl, unreadCount, title, notificat
       </div>
 
       <div className="flex items-center gap-3">
+        <ThemeToggle />
+
         <Link
           href={notificationsHref}
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}

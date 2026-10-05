@@ -201,7 +201,7 @@ export function EmployeeCreateForm({ departments }: { departments: Array<{ id: s
       </section>
 
       {serverError && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <p role="alert" className="alert-error">
           {serverError}
         </p>
       )}

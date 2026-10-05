@@ -174,7 +174,7 @@ export function EmployeeEditForm({ employee, departments }: Props) {
       </div>
 
       {serverError && (
-        <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <p role="alert" className="alert-error mt-4">
           {serverError}
         </p>
       )}

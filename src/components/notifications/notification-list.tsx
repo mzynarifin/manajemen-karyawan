@@ -61,7 +61,7 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
           <li
             key={item.id}
             className={`flex items-start gap-3 px-5 py-3.5 transition-colors duration-150 ${
-              item.is_read ? '' : 'bg-brand-50/40'
+              item.is_read ? '' : 'bg-brand-50/40 dark:bg-brand-500/10'
             }`}
           >
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-canvas text-muted">

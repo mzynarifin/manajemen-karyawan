@@ -35,7 +35,7 @@ export function ErrorState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600">
+      <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400">
         <AlertCircle className="h-5 w-5" aria-hidden />
       </span>
       <p className="text-sm font-semibold text-ink">{title}</p>
@@ -54,7 +54,7 @@ export function ErrorState({
 
 /** PRD section 65: skeletons for route transitions, never a full page spinner. */
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-zinc-100 ${className}`} />
+  return <div className={`animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-800 ${className}`} />
 }
 
 export function StatSkeleton() {

@@ -17,7 +17,9 @@ type Search = Record<string, string | string[] | undefined>
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const session = await requireAdminSession()
-  const query = reportQuerySchema.parse(await searchParams)
+  // Deep links from the sidebar carry no ?type, so a bad or missing value falls
+  // back to the first tab instead of throwing a ZodError at the page boundary.
+  const query = reportQuerySchema.catch({ type: 'employee' }).parse(await searchParams)
 
   const tabs = [
     { value: 'employee', label: 'Employees', href: '/admin/reports?type=employee' },

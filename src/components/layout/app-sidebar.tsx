@@ -84,7 +84,7 @@ export function AppSidebar({ role, name, avatarUrl, unreadCount }: SidebarProps)
               aria-current={isActive ? 'page' : undefined}
               className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-colors duration-150 ${
                 isActive
-                  ? 'bg-brand-50 font-medium text-brand-700'
+                  ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-200'
                   : 'text-muted hover:bg-canvas hover:text-ink'
               }`}
             >

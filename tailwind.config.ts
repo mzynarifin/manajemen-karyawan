@@ -2,6 +2,8 @@ import type { Config } from 'tailwindcss'
 
 // PRD section 56-62: one neutral scale, one brand colour, subtle shadows.
 const config: Config = {
+  // Theme is a `.dark` class on <html>, so light/dark is a class swap, not a rebuild.
+  darkMode: 'class',
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -15,11 +17,13 @@ const config: Config = {
           700: '#047857',
           800: '#065f46',
         },
-        canvas: '#f7f8fa',
-        surface: '#ffffff',
-        ink: '#18181b',
-        muted: '#71717a',
-        line: '#e4e4e7',
+        // Neutrals live in CSS variables (see globals.css) so the `.dark`
+        // block re-themes every existing `bg-surface text-ink` at once.
+        canvas: 'rgb(var(--canvas) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        line: 'rgb(var(--line) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],

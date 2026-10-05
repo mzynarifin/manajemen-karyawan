@@ -21,7 +21,7 @@ export function Field({ label, hint, error, required, className, children }: Fie
     <div className={className}>
       <label htmlFor={id} className="field-label">
         {label}
-        {required && <span className="ml-0.5 text-red-500">*</span>}
+        {required && <span className="ml-0.5 text-red-500 dark:text-red-400">*</span>}
       </label>
       <div className="mt-1.5">
         {children({

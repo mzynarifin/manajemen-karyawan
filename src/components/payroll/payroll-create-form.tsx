@@ -197,14 +197,14 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
           <span className="text-xl font-semibold tabular-nums text-ink">{formatCurrency(netSalary)}</span>
         </div>
         {netSalary < 0 && (
-          <p className="mt-1 text-xs font-medium text-red-600">
+          <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
             Deduction is larger than the earnings. The backend will reject this.
           </p>
         )}
       </section>
 
       {serverError && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <p role="alert" className="alert-error">
           {serverError}
         </p>
       )}

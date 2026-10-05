@@ -34,7 +34,7 @@ export function ProfileAvatar({
   return (
     <span
       aria-hidden
-      className={`${dimension.box} ${dimension.text} flex shrink-0 items-center justify-center rounded-full bg-brand-50 font-semibold uppercase text-brand-700`}
+      className={`${dimension.box} ${dimension.text} flex shrink-0 items-center justify-center rounded-full bg-brand-50 font-semibold uppercase text-brand-700 dark:bg-brand-500/20 dark:text-brand-200`}
     >
       {initials(name)}
     </span>

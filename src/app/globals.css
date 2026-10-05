@@ -3,8 +3,32 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme. Tailwind reads these (tailwind.config.ts), so a theme change is
+     one variable block - no component edits. */
+  :root {
+    --canvas: 247 248 250;
+    --surface: 255 255 255;
+    --ink: 24 24 27;
+    --muted: 113 113 122;
+    --line: 228 228 231;
+  }
+
+  .dark {
+    --canvas: 9 9 11;
+    --surface: 24 24 27;
+    --ink: 244 244 245;
+    --muted: 161 161 170;
+    --line: 39 39 42;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
+    /* Native controls (date pickers, scrollbars) follow the theme. */
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
   }
 
   body {
@@ -34,6 +58,11 @@
   }
 
   .field-error {
-    @apply mt-1 text-xs font-medium text-red-600;
+    @apply mt-1 text-xs font-medium text-red-600 dark:text-red-400;
+  }
+
+  /* Inline form-level error banner, shared by every form. */
+  .alert-error {
+    @apply rounded-md bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:bg-red-500/15 dark:text-red-300;
   }
 }
