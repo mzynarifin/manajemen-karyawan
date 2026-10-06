@@ -29,7 +29,10 @@ export default async function NewPayrollPage({
           Back to Payroll
         </Link>
 
-        <PageHeader title="Create Payroll" description="New payroll records start as draft and can be edited." />
+        <PageHeader
+          title="Create Payroll"
+          description="Pick several employees to create one draft payroll each for the same period."
+        />
 
         <PayrollCreateForm employees={employees} defaultEmployeeId={params.employee_id} />
       </div>

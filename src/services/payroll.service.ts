@@ -3,7 +3,12 @@ import { AppError } from '@/lib/api-response'
 import { getAdminClient } from '@/lib/supabase/admin'
 import { dbError } from '@/lib/utils/db-error'
 import { paginationMeta, range } from '@/lib/utils/query'
-import type { PayrollCreateInput, PayrollQuery, PayrollUpdateInput } from '@/lib/validations/payroll'
+import type {
+  PayrollBatchCreateInput,
+  PayrollCreateInput,
+  PayrollQuery,
+  PayrollUpdateInput,
+} from '@/lib/validations/payroll'
 import type { Payroll } from '@/types'
 import { logActivity } from '@/services/audit.service'
 import { notify } from '@/services/notification.service'
@@ -45,6 +50,7 @@ export async function listPayrolls(
   return { items: data, pagination: paginationMeta(query.page, query.limit, count ?? 0) }
 }
 
+/** PRD section 34, one employee per call. */
 export async function createPayroll(actorUserId: string, input: PayrollCreateInput): Promise<Payroll> {
   const admin = getAdminClient()
   const net = netSalary(input)
@@ -73,6 +79,116 @@ export async function createPayroll(actorUserId: string, input: PayrollCreateInp
   })
 
   return data as Payroll
+}
+
+export type PayrollBatchResult = {
+  created: Array<{ id: string; employee_id: string; employee_code: string; full_name: string }>
+  skipped: Array<{ employee_id: string; employee_code: string; full_name: string }>
+}
+
+/**
+ * PRD section 34: one row per employee in a single insert, so a batch is either
+ * fully written or not written at all. Amounts are per employee, not shared:
+ * everyone keeps the base salary from their record unless HR changed it in the
+ * form, and each gets their own allowance, bonus and deduction.
+ *
+ * Employees who already have a payroll for that period are skipped instead of
+ * failing the batch, so hitting the button twice cannot duplicate or wipe
+ * anything. ignoreDuplicates covers the race where two admins submit at once.
+ */
+export async function createPayrollBatch(
+  actorUserId: string,
+  input: PayrollBatchCreateInput,
+): Promise<PayrollBatchResult> {
+  const admin = getAdminClient()
+
+  const byEmployee = new Map(input.items.map((item) => [item.employee_id, item]))
+  const employeeIds = Array.from(byEmployee.keys())
+
+  const { data: employees, error: employeeError } = await admin
+    .from('employees')
+    .select('id, employee_code, full_name')
+    .in('id', employeeIds)
+
+  if (employeeError) throw dbError(employeeError)
+
+  const found = new Map((employees ?? []).map((employee) => [employee.id, employee]))
+  const missing = employeeIds.filter((id) => !found.has(id))
+  if (missing.length) {
+    throw new AppError('EMPLOYEE_NOT_FOUND', 'Some selected employees no longer exist', 404)
+  }
+
+  const { data: existing, error: existingError } = await admin
+    .from('payrolls')
+    .select('employee_id')
+    .in('employee_id', employeeIds)
+    .eq('period_month', input.period_month)
+    .eq('period_year', input.period_year)
+
+  if (existingError) throw dbError(existingError)
+
+  const alreadyPaid = new Set((existing ?? []).map((row) => row.employee_id))
+  const name = (id: string) => ({
+    employee_code: found.get(id)!.employee_code,
+    full_name: found.get(id)!.full_name,
+  })
+
+  const skipped = employeeIds.filter((id) => alreadyPaid.has(id)).map((id) => ({ employee_id: id, ...name(id) }))
+  const targets = employeeIds.filter((id) => !alreadyPaid.has(id))
+
+  if (targets.length === 0) return { created: [], skipped }
+
+  const rows = targets.map((id) => {
+    const item = byEmployee.get(id)!
+    const amounts = {
+      base_salary: item.base_salary,
+      allowance: item.allowance,
+      bonus: item.bonus,
+      deduction: item.deduction,
+    }
+    const net = netSalary(amounts)
+    if (net < 0) {
+      throw new AppError('NET_SALARY_INVALID', `Deduction is larger than the earnings for ${name(id).full_name}`, 422)
+    }
+    return {
+      employee_id: id,
+      period_month: input.period_month,
+      period_year: input.period_year,
+      ...amounts,
+      net_salary: net,
+      status: 'draft',
+      created_by: actorUserId,
+    }
+  })
+
+  const { data: inserted, error: insertError } = await admin
+    .from('payrolls')
+    .upsert(rows, { onConflict: 'employee_id,period_month,period_year', ignoreDuplicates: true })
+    .select('id, employee_id')
+
+  if (insertError) throw dbError(insertError)
+
+  const insertedIds = new Set((inserted ?? []).map((row) => row.employee_id))
+  const created = (inserted ?? []).map((row) => ({
+    id: row.id as string,
+    employee_id: row.employee_id,
+    ...name(row.employee_id),
+  }))
+
+  // Only reachable when another admin inserted the same period mid-flight.
+  for (const id of targets) {
+    if (!insertedIds.has(id)) skipped.push({ employee_id: id, ...name(id) })
+  }
+
+  await logActivity(admin, {
+    userId: actorUserId,
+    action: 'create_payroll_batch',
+    entity: 'payrolls',
+    entityId: inserted?.[0]?.id ?? null,
+    description: `Payroll ${input.period_month}/${input.period_year}: ${created.length} created, ${skipped.length} skipped`,
+  })
+
+  return { created, skipped }
 }
 
 /** Only drafts are editable, PRD section 86. */
