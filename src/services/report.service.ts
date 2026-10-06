@@ -62,7 +62,7 @@ export async function attendanceReport(sb: SupabaseClient, filter: ReportFilter)
       if (filter.date_from) request = request.gte('attendance_date', filter.date_from)
       if (filter.date_to) request = request.lte('attendance_date', filter.date_to)
       if (filter.employee_id) request = request.eq('employee_id', filter.employee_id)
-      if (filter.department_id) request = request.eq('employees!inner.department_id', filter.department_id)
+      if (filter.department_id) request = request.eq('employees.department_id', filter.department_id)
 
       const { count, error } = await request
       if (error) throw dbError(error)
@@ -118,7 +118,7 @@ export async function payrollReport(sb: SupabaseClient, filter: ReportFilter) {
 
   if (filter.period_month) request = request.eq('period_month', filter.period_month)
   if (filter.period_year) request = request.eq('period_year', filter.period_year)
-  if (filter.department_id) request = request.eq('employees!inner.department_id', filter.department_id)
+  if (filter.department_id) request = request.eq('employees.department_id', filter.department_id)
   if (filter.employee_id) request = request.eq('employee_id', filter.employee_id)
 
   const { data, error } = await request

@@ -30,7 +30,7 @@ export async function listAttendance(
   if (query.date_from) request = request.gte('attendance_date', query.date_from)
   if (query.date_to) request = request.lte('attendance_date', query.date_to)
   if (query.status) request = request.eq('status', query.status)
-  if (query.department_id) request = request.eq('employees!inner.department_id', query.department_id)
+  if (query.department_id) request = request.eq('employees.department_id', query.department_id)
 
   const { data, error, count } = await request
     .order(query.sort, { ascending: query.order === 'asc' })
