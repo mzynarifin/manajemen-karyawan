@@ -52,14 +52,15 @@ export async function sumPayrollPeriod(sb: SupabaseClient, month: number, year: 
     .select('net_salary, status')
     .eq('period_month', month)
     .eq('period_year', year)
-    .eq('status', 'published')
 
   if (error) throw dbError(error)
 
   const rows = data ?? []
+  const published = rows.filter((row) => row.status === 'published')
   return {
-    count: rows.length,
-    total: rows.reduce((sum, row) => sum + Number(row.net_salary ?? 0), 0),
+    count: published.length,
+    draft: rows.length - published.length,
+    total: published.reduce((sum, row) => sum + Number(row.net_salary ?? 0), 0),
   }
 }
 

@@ -202,15 +202,22 @@ export async function updateEmployeeSelf(
   return data as Employee
 }
 
+/**
+ * Ordering employee_code as text puts EMP-0099 above EMP-0100, so the database
+ * order cannot be trusted once the numbering rolls over to four digits. Every
+ * existing code is compared as a number instead.
+ */
 async function generateEmployeeCode(admin: SupabaseClient): Promise<string> {
-  const { data, error } = await admin
-    .from('employees')
-    .select('employee_code')
-    .order('employee_code', { ascending: false })
-    .limit(1)
-
+  const { data, error } = await admin.from('employees').select('employee_code').limit(1000)
   if (error) throw dbError(error)
-  return nextEmployeeCode(data?.[0]?.employee_code)
+
+  const numbers = (data ?? [])
+    .map((row) => row.employee_code)
+    .filter((code) => /^EMP-\d+$/.test(code))
+    .map((code) => Number(code.slice(4)))
+
+  if (numbers.length === 0) return nextEmployeeCode(null)
+  return nextEmployeeCode(`EMP-${Math.max(...numbers)}`)
 }
 
 function temporaryPassword(): string {

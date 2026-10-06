@@ -19,6 +19,7 @@ export function nowInAppTimezone(at: Date = new Date()) {
   return {
     date: `${year}-${month}-${day}`,
     year,
+    month: Number(month),
     minutes: part('hour') * 60 + part('minute'),
   }
 }

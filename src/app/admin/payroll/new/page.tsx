@@ -5,7 +5,7 @@ import { AdminShell } from '@/components/layout/shell'
 import { PageHeader } from '@/components/ui/page-header'
 import { PayrollCreateForm } from '@/components/payroll/payroll-create-form'
 import { requireAdminSession } from '@/lib/supabase/session'
-import { listActiveEmployees } from '@/features/employees/queries'
+import { listActiveEmployees, listDepartments } from '@/features/employees/queries'
 
 export const metadata: Metadata = { title: 'Create Payroll' }
 
@@ -16,7 +16,12 @@ export default async function NewPayrollPage({
 }) {
   const session = await requireAdminSession()
   const params = await searchParams
-  const employees = await listActiveEmployees(session.supabase)
+  // One row per employee is rendered, so the picker needs every active employee
+  // rather than the default page-sized slice.
+  const [employees, departments] = await Promise.all([
+    listActiveEmployees(session.supabase, undefined, 500),
+    listDepartments(session.supabase),
+  ])
 
   return (
     <AdminShell title="Create Payroll">
@@ -34,7 +39,7 @@ export default async function NewPayrollPage({
           description="Pick several employees to create one draft payroll each for the same period."
         />
 
-        <PayrollCreateForm employees={employees} defaultEmployeeId={params.employee_id} />
+        <PayrollCreateForm employees={employees} departments={departments} defaultEmployeeId={params.employee_id} />
       </div>
     </AdminShell>
   )

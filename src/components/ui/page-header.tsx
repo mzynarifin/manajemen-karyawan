@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export function PageHeader({
   title,
   description,
@@ -18,22 +20,48 @@ export function PageHeader({
   )
 }
 
-/** PRD section 16: label, value, optional supporting text. No big icons. */
+/** PRD section 16: label, value, optional supporting text. No big icons.
+ *  Passing href turns the card into the shortcut to the page behind the number. */
 export function StatCard({
   label,
   value,
   hint,
+  href,
 }: {
   label: string
   value: string | number
   hint?: string
+  href?: string
 }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface px-4 py-3.5">
-      <p className="text-[13px] text-muted">{label}</p>
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[13px] text-muted">{label}</p>
+        {href && (
+          <span
+            aria-hidden
+            className="text-xs text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          >
+            View →
+          </span>
+        )}
+      </div>
       <p className="mt-1.5 text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
-    </div>
+    </>
+  )
+
+  const className = 'block rounded-lg border border-line bg-surface px-4 py-3.5'
+
+  if (!href) return <div className={className}>{body}</div>
+
+  return (
+    <Link
+      href={href}
+      className={`${className} group transition-colors duration-150 hover:border-brand-700/40 hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700`}
+    >
+      {body}
+    </Link>
   )
 }
 

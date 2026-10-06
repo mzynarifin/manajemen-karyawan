@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { CurrencyInput, Field, Input, Select } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { createPayrollBatchAction, type PayrollBatchItem } from '@/features/payroll/actions'
+import { initialOf, initialsOf } from '@/lib/utils/initials'
 import { formatCurrency } from '@/lib/formatters'
 
 const schema = z.object({
@@ -32,6 +33,8 @@ type EmployeeOption = {
   employee_code: string
   position: string | null
   base_salary: number
+  department_id: string | null
+  departments: { id: string; name: string } | null
 }
 
 /** What HR types for one person: amounts are entered as digits only. */
@@ -39,6 +42,7 @@ type Row = { base_salary: string; allowance: string; bonus: string; deduction: s
 
 type Props = {
   employees: EmployeeOption[]
+  departments: Array<{ id: string; name: string }>
   defaultEmployeeId?: string
 }
 
@@ -66,13 +70,15 @@ function rowNet(row: Row) {
 }
 
 /** PRD section 34: pick many employees, one click, one row each with own amounts. */
-export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
+export function PayrollCreateForm({ employees, departments, defaultEmployeeId }: Props) {
   const router = useRouter()
   const toast = useToast()
   const [pending, startTransition] = useTransition()
   const [serverError, setServerError] = useState<string | null>(null)
   const [summary, setSummary] = useState<BatchSummary | null>(null)
   const [search, setSearch] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+  const [initial, setInitial] = useState('')
   // Amounts live outside react-hook-form: they are keyed by employee and must
   // survive ticking and unticking other people.
   const [rows, setRows] = useState<Record<string, Row>>(() =>
@@ -97,13 +103,21 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
     [employees, rows],
   )
 
-  const visible = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return employees
-    return employees.filter((employee) =>
-      `${employee.full_name} ${employee.employee_code} ${employee.position ?? ''}`.toLowerCase().includes(term),
-    )
-  }, [employees, search])
+  const visible = employees.filter((employee) => {
+      if (departmentId && employee.department_id !== departmentId) return false
+      if (initial && initialOf(employee.full_name) !== initial) return false
+      const term = search.trim().toLowerCase()
+      if (!term) return true
+      return `${employee.full_name} ${employee.employee_code} ${employee.position ?? ''}`.toLowerCase().includes(term)
+    })
+
+  // Scoped to what the other filters already allow, so a greyed-out letter
+  // really has nobody behind it.
+  const availableInitials = initialsOf(
+    employees
+      .filter((employee) => !departmentId || employee.department_id === departmentId)
+      .map((employee) => employee.full_name),
+  )
 
   const totalNet = selected.reduce((sum, employee) => sum + rowNet(rows[employee.id]), 0)
   const negativeRows = selected.filter((employee) => rowNet(rows[employee.id]) < 0)
@@ -209,23 +223,83 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
           deduction below. Employees who already have a payroll for this period are skipped.
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <Input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, employee ID, position..."
-            className="w-full max-w-xs"
-            aria-label="Search employees"
-          />
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-56">
+              <Field label="Department">
+                {(props) => (
+                  <Select {...props} value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
+                    <option value="">All departments</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </div>
+
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, employee ID, position..."
+              className="w-full max-w-xs"
+              aria-label="Search employees"
+            />
+          </div>
+
           <div className="flex items-center gap-3 text-[13px]">
-            <span className="text-muted">{selected.length} selected</span>
+            <span className="text-muted">
+              {visible.length === employees.length
+                ? `${selected.length} selected`
+                : `${visible.length} of ${employees.length} shown, ${selected.length} selected`}
+            </span>
             <button type="button" onClick={toggleAll} className="font-medium text-brand-700 hover:underline">
               {visible.length > 0 && visible.every((employee) => employee.id in rows)
                 ? 'Clear visible'
                 : 'Select all visible'}
             </button>
           </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-[13px] text-muted">Name</span>
+          <button
+            type="button"
+            onClick={() => setInitial('')}
+            aria-current={initial ? undefined : 'true'}
+            className={`h-8 rounded-md px-2.5 text-[13px] transition-colors duration-150 ${
+              initial ? 'text-muted hover:bg-canvas hover:text-ink' : 'bg-brand-700 font-medium text-white'
+            }`}
+          >
+            All
+          </button>
+          {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => {
+            const empty = !availableInitials.includes(letter)
+            const isActive = initial === letter
+
+            return (
+              <button
+                key={letter}
+                type="button"
+                onClick={() => setInitial(letter)}
+                disabled={empty}
+                aria-current={isActive ? 'true' : undefined}
+                title={empty ? `No employee starts with ${letter}` : undefined}
+                className={`h-8 w-8 rounded-md text-[13px] tabular-nums transition-colors duration-150 ${
+                  isActive
+                    ? 'bg-brand-700 font-medium text-white'
+                    : empty
+                      ? 'cursor-not-allowed text-muted/40'
+                      : 'text-muted hover:bg-canvas hover:text-ink'
+                }`}
+              >
+                {letter}
+              </button>
+            )
+          })}
         </div>
 
         <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-line">
@@ -247,7 +321,10 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
                     <label htmlFor={`pick-${employee.id}`} className="flex min-w-0 flex-1 cursor-pointer items-baseline justify-between gap-3">
                       <span className="truncate text-[13px] text-ink">
                         {employee.full_name}
-                        <span className="ml-2 text-muted">{employee.employee_code}</span>
+                        <span className="ml-2 text-muted">
+                          {employee.employee_code}
+                          {employee.departments ? ` · ${employee.departments.name}` : ''}
+                        </span>
                       </span>
                       <span className="shrink-0 text-[13px] tabular-nums text-muted">
                         {formatCurrency(employee.base_salary)}
@@ -377,3 +454,4 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
     </form>
   )
 }
+
