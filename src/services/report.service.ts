@@ -107,8 +107,9 @@ export async function leaveReport(sb: SupabaseClient, filter: ReportFilter) {
   }
 }
 
-/** PRD section 68 - Payroll report. Period and department are required by the
- * report itself, so a missing filter returns zeroes instead of every row. */
+/** PRD section 68. Payroll report. With no period filter this sums every
+ *  published payslip, so callers that need one period should send period_month
+ *  and period_year. */
 export async function payrollReport(sb: SupabaseClient, filter: ReportFilter) {
   let request = sb
     .from('payrolls')

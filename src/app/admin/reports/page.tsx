@@ -96,7 +96,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         </StatGrid>
       )
     }
-  } catch {
+  } catch (error) {
+    console.error('[reports] admin report failed', error)
     content = (
       <Card>
         <ErrorState title="Unable to build this report" description="The report data could not be loaded." />
@@ -111,7 +112,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
         <Tabs items={tabs} active={query.type} />
 
-        <ReportFilterBar type={query.type} current={query} />
+        <ReportFilterBar type={query.type} current={query} basePath="/admin/reports" />
 
         {content}
       </div>

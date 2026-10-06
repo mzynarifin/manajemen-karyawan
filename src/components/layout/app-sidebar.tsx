@@ -37,6 +37,7 @@ const EMPLOYEE_MENU = [
   { href: '/employee/attendance', label: 'Attendance', icon: CheckCircle2 },
   { href: '/employee/leave', label: 'Leave', icon: CalendarDays },
   { href: '/employee/payslip', label: 'Payslip', icon: Receipt },
+  { href: '/employee/reports', label: 'My Reports', icon: FileText },
   { href: '/employee/notifications', label: 'Notifications', icon: Bell },
   { href: '/employee/profile', label: 'Profile', icon: CircleUser },
 ]

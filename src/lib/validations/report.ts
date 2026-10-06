@@ -10,3 +10,19 @@ export const reportQuerySchema = z.object({
   period_year: z.coerce.number().int().min(2000).max(2100).optional(),
   leave_type: z.enum(['annual', 'sick', 'personal']).optional(),
 })
+
+/**
+ * Employee reports. No employee_id or department_id: RLS already limits these
+ * tables to `current_employee_id()`, so accepting the param would only invite
+ * a filter that silently does nothing.
+ */
+export const myReportQuerySchema = z.object({
+  type: z.enum(['attendance', 'leave', 'payroll']),
+  date_from: z.iso.date().optional(),
+  date_to: z.iso.date().optional(),
+  period_month: z.coerce.number().int().min(1).max(12).optional(),
+  period_year: z.coerce.number().int().min(2000).max(2100).optional(),
+  leave_type: z.enum(['annual', 'sick', 'personal']).optional(),
+})
+
+export type MyReportQuery = z.infer<typeof myReportQuerySchema>
