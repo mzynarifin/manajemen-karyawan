@@ -1,5 +1,6 @@
 'use server'
 
+import type { ZodError } from 'zod'
 import { actionFailure, actionSuccess, type ActionResult } from '@/lib/action-result'
 import { requireAdminSession } from '@/lib/supabase/session'
 import {
@@ -7,6 +8,16 @@ import {
   employeeUpdateSchema,
 } from '@/lib/validations/employee'
 import { createEmployee, setEmployeeActive, updateEmployee } from '@/services/employee.service'
+
+/** The form only needs the first message per field to show it under the input. */
+function zodFieldErrors(error: ZodError): Record<string, string> {
+  const fieldErrors: Record<string, string> = {}
+  for (const issue of error.issues) {
+    const field = issue.path.join('.')
+    if (field && !fieldErrors[field]) fieldErrors[field] = issue.message
+  }
+  return fieldErrors
+}
 
 export type EmployeeCreateForm = {
   full_name: string
@@ -22,6 +33,9 @@ export type EmployeeCreateForm = {
   employment_type?: 'permanent' | 'contract'
   base_salary?: string
   password?: string
+  work_start?: string
+  work_end?: string
+  break_minutes?: string
 }
 
 export async function createEmployeeAction(input: EmployeeCreateForm): Promise<ActionResult> {
@@ -30,10 +44,21 @@ export async function createEmployeeAction(input: EmployeeCreateForm): Promise<A
     ...input,
     employee_code: input.employee_code || undefined,
     base_salary: input.base_salary || 0,
+    gender: input.gender || undefined,
+    birth_date: input.birth_date || undefined,
+    join_date: input.join_date || undefined,
+    work_start: input.work_start || null,
+    work_end: input.work_end || null,
+    break_minutes: input.break_minutes || 0,
   })
 
   if (!parsed.success) {
-    return { ok: false, message: 'Please check the highlighted fields.' }
+    return {
+      ok: false,
+      message: 'Please check the highlighted fields.',
+      code: 'VALIDATION_ERROR',
+      fieldErrors: zodFieldErrors(parsed.error),
+    }
   }
 
   try {
@@ -56,6 +81,9 @@ export type EmployeeUpdateForm = {
   employment_type?: 'permanent' | 'contract'
   base_salary?: string
   status?: 'active' | 'inactive'
+  work_start?: string | null
+  work_end?: string | null
+  break_minutes?: string
 }
 
 export async function updateEmployeeAction(id: string, input: EmployeeUpdateForm): Promise<ActionResult> {
@@ -67,10 +95,18 @@ export async function updateEmployeeAction(id: string, input: EmployeeUpdateForm
     department_id: input.department_id || undefined,
     join_date: input.join_date || undefined,
     base_salary: input.base_salary ?? undefined,
+    work_start: input.work_start || null,
+    work_end: input.work_end || null,
+    break_minutes: input.break_minutes || 0,
   })
 
   if (!parsed.success) {
-    return { ok: false, message: 'Please check the highlighted fields.' }
+    return {
+      ok: false,
+      message: 'Please check the highlighted fields.',
+      code: 'VALIDATION_ERROR',
+      fieldErrors: zodFieldErrors(parsed.error),
+    }
   }
 
   try {

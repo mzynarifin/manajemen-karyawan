@@ -29,12 +29,20 @@ export function Dialog({
   size = 'sm',
 }: DialogProps & { size?: keyof typeof WIDTHS }) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
 
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  // Depends on `open` only: onClose is a new arrow function on every render of
+  // the caller, and re-running this effect would steal focus back to the first
+  // field mid-typing.
   useEffect(() => {
     if (!open) return
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
     }
 
     document.addEventListener('keydown', onKeyDown)
@@ -45,7 +53,7 @@ export function Dialog({
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

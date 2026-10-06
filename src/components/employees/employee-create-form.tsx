@@ -28,6 +28,9 @@ const schema = z.object({
   employment_type: z.enum(['permanent', 'contract']),
   base_salary: z.string().optional(),
   password: z.string().min(8, 'At least 8 characters.').optional().or(z.literal('')),
+  work_start: z.string().optional(),
+  work_end: z.string().optional(),
+  break_minutes: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -61,6 +64,9 @@ export function EmployeeCreateForm({ departments }: { departments: Array<{ id: s
         employee_code: values.employee_code || undefined,
         password: values.password || undefined,
         department_id: values.department_id || undefined,
+        work_start: values.work_start || undefined,
+        work_end: values.work_end || undefined,
+        break_minutes: values.break_minutes || undefined,
       })
 
       if (result.ok) {
@@ -178,6 +184,29 @@ export function EmployeeCreateForm({ departments }: { departments: Array<{ id: s
                 value={baseSalary ?? ''}
                 onValueChange={(value) => setValue('base_salary', value)}
               />
+            )}
+          </Field>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-line bg-surface p-5">
+        <h2 className="text-[15px] font-semibold text-ink">Working Hours</h2>
+        <p className="mt-0.5 text-[13px] text-muted">
+          Leave empty to use the company default shift. This decides when check-in counts as late and how many
+          hours are worked.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <Field label="Shift Start" error={errors.work_start?.message}>
+            {(props) => <Input {...props} type="time" step={300} {...register('work_start')} />}
+          </Field>
+
+          <Field label="Shift End" error={errors.work_end?.message}>
+            {(props) => <Input {...props} type="time" step={300} {...register('work_end')} />}
+          </Field>
+
+          <Field label="Break (minutes)" error={errors.break_minutes?.message}>
+            {(props) => (
+              <Input {...props} type="number" min={0} max={480} step={5} placeholder="60" {...register('break_minutes')} />
             )}
           </Field>
         </div>

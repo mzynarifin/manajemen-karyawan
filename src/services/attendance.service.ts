@@ -3,7 +3,8 @@ import { AppError } from '@/lib/api-response'
 import { requireOwnEmployee, type AuthContext } from '@/lib/auth/require-auth'
 import { ATTENDANCE_GRACE_MINUTES, ATTENDANCE_START_TIME } from '@/lib/config'
 import { getAdminClient } from '@/lib/supabase/admin'
-import { nowInAppTimezone, parseClock, workingMinutes } from '@/lib/utils/date'
+import { nowInAppTimezone, workingMinutes, effectiveWorkingMinutes } from '@/lib/utils/date'
+import { parseClock, toClock } from '@/lib/utils/clock'
 import { dbError } from '@/lib/utils/db-error'
 import { paginationMeta, range } from '@/lib/utils/query'
 import type { AttendanceQuery } from '@/lib/validations/attendance'
@@ -26,7 +27,10 @@ export async function checkIn(auth: AuthContext): Promise<Attendance> {
 
   if (existing) throw new AppError('ATTENDANCE_ALREADY_EXISTS', 'Already checked in today', 409)
 
-  const deadline = parseClock(ATTENDANCE_START_TIME) + ATTENDANCE_GRACE_MINUTES
+  // HR sets the shift per employee; the env value stays the fallback so
+  // employees without a schedule keep behaving exactly as before.
+  const shiftStart = employee.work_start ? parseClock(toClock(employee.work_start)!) : parseClock(ATTENDANCE_START_TIME)
+  const deadline = shiftStart + ATTENDANCE_GRACE_MINUTES
   const status: AttendanceStatus = minutes <= deadline ? 'present' : 'late'
 
   const { data, error } = await auth.supabase
@@ -67,7 +71,10 @@ export async function checkOut(auth: AuthContext): Promise<Attendance> {
   if (attendance.check_out) throw new AppError('CHECK_OUT_ALREADY_EXISTS', 'Already checked out today', 409)
 
   const checkOutAt = new Date().toISOString()
-  const minutes = workingMinutes(attendance.check_in, checkOutAt)
+  const minutes = effectiveWorkingMinutes(
+    workingMinutes(attendance.check_in, checkOutAt),
+    employee.break_minutes ?? 0,
+  )
 
   // Employees hold no UPDATE grant on attendance (column privileges, see the
   // migration), so the write goes through the service role after the checks

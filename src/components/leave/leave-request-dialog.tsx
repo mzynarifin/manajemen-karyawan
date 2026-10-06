@@ -25,6 +25,8 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>
 
+const FORM_ID = 'leave-request-form'
+
 /** PRD section 49: total days and remaining balance preview before submit. */
 export function LeaveRequestDialog({
   remaining,
@@ -103,11 +105,12 @@ export function LeaveRequestDialog({
         size="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit(submitRequest)}
+              type="submit"
+              form={FORM_ID}
               loading={pending}
               disabled={totalDays === 0 || exceedsBalance}
             >
@@ -116,7 +119,7 @@ export function LeaveRequestDialog({
           </>
         }
       >
-        <form onSubmit={handleSubmit(submitRequest)} noValidate className="space-y-4">
+        <form id={FORM_ID} onSubmit={handleSubmit(submitRequest)} noValidate className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Leave Type" required error={errors.leave_type?.message}>
               {(props) => (
@@ -170,8 +173,6 @@ export function LeaveRequestDialog({
               {serverError}
             </p>
           )}
-
-          <button type="submit" className="hidden" aria-hidden />
         </form>
       </Dialog>
     </>

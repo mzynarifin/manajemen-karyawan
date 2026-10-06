@@ -37,6 +37,9 @@ export interface Employee {
   employment_type: EmploymentType | null
   base_salary: number
   status: EmployeeStatus
+  work_start: string | null
+  work_end: string | null
+  break_minutes: number
   created_at: string
   updated_at: string
 }

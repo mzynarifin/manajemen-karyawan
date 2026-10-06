@@ -96,6 +96,9 @@ export async function createEmployee(actorUserId: string, input: EmployeeCreateI
       p_base_salary: input.base_salary,
       p_avatar_url: null,
       p_default_annual_leave: DEFAULT_ANNUAL_LEAVE,
+      p_work_start: input.work_start ?? null,
+      p_work_end: input.work_end ?? null,
+      p_break_minutes: input.break_minutes ?? 0,
     })
 
     if (error) throw dbError(error)

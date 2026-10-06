@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { CurrencyInput, Field, Input, Select } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { updateEmployeeAction } from '@/features/employees/actions'
+import { toClock } from '@/lib/utils/clock'
 
 const schema = z.object({
   full_name: z.string().min(3, 'Full name is required.'),
@@ -22,6 +23,9 @@ const schema = z.object({
   join_date: z.string().optional(),
   employment_type: z.enum(['permanent', 'contract']),
   base_salary: z.string().optional(),
+  work_start: z.string().optional(),
+  work_end: z.string().optional(),
+  break_minutes: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -39,6 +43,9 @@ type Props = {
     join_date: string | null
     employment_type: string | null
     base_salary: number
+    work_start: string | null
+    work_end: string | null
+    break_minutes: number
   }
   departments: Array<{ id: string; name: string }>
 }
@@ -70,6 +77,9 @@ export function EmployeeEditForm({ employee, departments }: Props) {
       join_date: employee.join_date ?? undefined,
       employment_type: (employee.employment_type ?? 'permanent') as 'permanent' | 'contract',
       base_salary: String(employee.base_salary ?? 0),
+      work_start: toClock(employee.work_start) ?? '',
+      work_end: toClock(employee.work_end) ?? '',
+      break_minutes: employee.break_minutes ? String(employee.break_minutes) : '',
     },
   })
 
@@ -89,6 +99,9 @@ export function EmployeeEditForm({ employee, departments }: Props) {
         join_date: values.join_date || null,
         employment_type: values.employment_type,
         base_salary: baseSalary,
+        work_start: values.work_start || null,
+        work_end: values.work_end || null,
+        break_minutes: values.break_minutes,
       })
 
       if (result.ok) {
@@ -110,7 +123,8 @@ export function EmployeeEditForm({ employee, departments }: Props) {
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="rounded-lg border border-line bg-surface p-5">
       <h2 className="text-[15px] font-semibold text-ink">Edit Employee</h2>
       <p className="mt-0.5 text-[13px] text-muted">
-        Email and employee ID are fixed after creation. Status changes are managed from the employee list.
+        Email and employee ID are fixed after creation. Status changes are managed from the employee list. Empty
+        shift times fall back to the company default.
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -169,6 +183,38 @@ export function EmployeeEditForm({ employee, departments }: Props) {
         <Field label="Base Salary" error={errors.base_salary?.message}>
           {(props) => (
             <CurrencyInput {...props} value={baseSalary ?? ''} onValueChange={(value) => setValue('base_salary', value)} />
+          )}
+        </Field>
+
+        <Field label="Shift Start" hint="Empty = company default." error={errors.work_start?.message}>
+          {(props) => (
+            <Input
+              {...props}
+              type="time"
+              step={300}
+              defaultValue={toClock(employee.work_start) ?? ''}
+              {...register('work_start')}
+            />
+          )}
+        </Field>
+
+        <Field label="Shift End" error={errors.work_end?.message}>
+          {(props) => (
+            <Input {...props} type="time" step={300} defaultValue={toClock(employee.work_end) ?? ''} {...register('work_end')} />
+          )}
+        </Field>
+
+        <Field label="Break (minutes)" error={errors.break_minutes?.message}>
+          {(props) => (
+            <Input
+              {...props}
+              type="number"
+              min={0}
+              max={480}
+              step={5}
+              defaultValue={employee.break_minutes ? String(employee.break_minutes) : ''}
+              {...register('break_minutes')}
+            />
           )}
         </Field>
       </div>

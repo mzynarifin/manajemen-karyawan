@@ -24,8 +24,19 @@ import {
 } from '@/lib/formatters'
 import { getEmployee, listDepartments } from '@/features/employees/queries'
 import { getLeaveBalance } from '@/features/leave/queries'
+import { ATTENDANCE_START_TIME } from '@/lib/config'
+import { toClock } from '@/lib/utils/clock'
 
 export const metadata: Metadata = { title: 'Employee Detail' }
+
+/** "09:00 - 18:00 (60 min break)", or the fallback when no shift is set. */
+function formatShift(employee: { work_start: string | null; work_end: string | null; break_minutes: number }) {
+  const start = toClock(employee.work_start)
+  const end = toClock(employee.work_end)
+  if (!start || !end) return `${ATTENDANCE_START_TIME} (company default)`
+  const brk = employee.break_minutes ? ` (${employee.break_minutes} min break)` : ''
+  return `${start} - ${end}${brk}`
+}
 
 type Search = Record<string, string | string[] | undefined>
 
@@ -155,6 +166,7 @@ export default async function EmployeeDetailPage({
                     <StatusBadge value={employee.employment_type ?? '-'} tone="neutral" />
                   </DescriptionRow>
                   <DescriptionRow label="Base Salary">{formatCurrency(employee.base_salary)}</DescriptionRow>
+                  <DescriptionRow label="Working Hours">{formatShift(employee)}</DescriptionRow>
                 </dl>
               </CardBody>
             </Card>

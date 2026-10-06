@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -60,7 +60,16 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
   })
 
   const values = useWatch({ control })
-  const selected = employees.find((employee) => employee.id === values.employee_id)
+  const employeeId = values.employee_id
+  const selected = employees.find((employee) => employee.id === employeeId)
+
+  // Driven by employee_id instead of the select's onChange so the salary is
+  // also filled when the employee arrives preselected via ?employee_id=,
+  // where no change event ever fires.
+  useEffect(() => {
+    const employee = employees.find((item) => item.id === employeeId)
+    if (employee) setValue('base_salary', String(employee.base_salary))
+  }, [employeeId, employees, setValue])
 
   const netSalary = useMemo(() => {
     const base = Number(values.base_salary || 0)
@@ -101,12 +110,7 @@ export function PayrollCreateForm({ employees, defaultEmployeeId }: Props) {
               <Select
                 {...props}
                 defaultValue={defaultEmployeeId ?? ''}
-                {...register('employee_id', {
-                  onChange: (event) => {
-                    const employee = employees.find((item) => item.id === (event.target.value as string))
-                    if (employee) setValue('base_salary', String(employee.base_salary))
-                  },
-                })}
+                {...register('employee_id')}
               >
                 <option value="">Select employee</option>
                 {employees.map((employee) => (

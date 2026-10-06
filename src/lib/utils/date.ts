@@ -23,10 +23,11 @@ export function nowInAppTimezone(at: Date = new Date()) {
   }
 }
 
-/** "08:00" -> 480 */
-export function parseClock(value: string): number {
-  const [hours, minutes] = value.split(':').map(Number)
-  return (hours || 0) * 60 + (minutes || 0)
+/** Minutes worked on the day, with the unpaid break taken off. */
+export function effectiveWorkingMinutes(raw: number, breakMinutes: number): number {
+  if (breakMinutes <= 0) return raw
+  // Someone who leaves before the break starts has not taken it yet.
+  return raw > breakMinutes ? raw - breakMinutes : 0
 }
 
 /** Inclusive calendar-day count, PRD section 25 (total days minimum 1). */
