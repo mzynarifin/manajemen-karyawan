@@ -38,7 +38,8 @@ export async function listPayrolls(sb: SupabaseClient, query: PayrollQuery, scop
 
   if (scope.employeeId) request = request.eq('employee_id', scope.employeeId)
   if (query.employee_id) request = request.eq('employee_id', query.employee_id)
-  if (query.department_id) request = request.eq('employees!inner.department_id', query.department_id)
+  if (query.initial) request = request.ilike('employees.full_name', `${query.initial}%`)
+  if (query.department_id) request = request.eq('employees.department_id', query.department_id)
   if (query.period_month) request = request.eq('period_month', query.period_month)
   if (query.period_year) request = request.eq('period_year', query.period_year)
   if (query.status) request = request.eq('status', query.status)

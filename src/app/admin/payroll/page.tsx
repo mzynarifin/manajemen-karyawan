@@ -9,6 +9,8 @@ import { DataTable, type Column } from '@/components/ui/table'
 import { StatusBadge } from '@/components/ui/badge'
 import { Pagination } from '@/components/ui/pagination'
 import { FilterBar } from '@/components/ui/filter-bar'
+import { EmployeeIndexNav } from '@/components/ui/employee-index-nav'
+import { initialsOf } from '@/lib/utils/initials'
 import { EmptyState, ErrorState } from '@/components/ui/states'
 import { PayrollRowActions } from '@/components/payroll/payroll-actions'
 import { requireAdminSession } from '@/lib/supabase/session'
@@ -58,6 +60,8 @@ export default async function AdminPayrollPage({
   const params = await searchParams
   const query = payrollQuerySchema.parse(params)
   const departments = await listDepartments(session.supabase)
+  // One light query so the index can grey out letters nobody starts with.
+  const { data: nameRows } = await session.supabase.from('employees').select('full_name')
 
   let records: Awaited<ReturnType<typeof listPayrolls>> | null = null
   try {
@@ -66,7 +70,11 @@ export default async function AdminPayrollPage({
     records = null
   }
 
-  const hasFilters = Boolean(query.period_month || query.period_year || query.status || query.department_id)
+  const hasFilters = Boolean(
+    query.period_month || query.period_year || query.status || query.department_id || query.initial,
+  )
+
+  const initials = initialsOf((nameRows ?? []).map((row) => row.full_name))
 
   return (
     <AdminShell title="Payroll">
@@ -85,7 +93,9 @@ export default async function AdminPayrollPage({
         />
 
         <Card>
-          <CardBody>
+          <CardBody className="space-y-3">
+            <EmployeeIndexNav available={initials} />
+
             <FilterBar
               options={{
                 period_month: [{ value: '', label: 'All months' }, ...MONTHS],
@@ -149,4 +159,5 @@ export default async function AdminPayrollPage({
     </AdminShell>
   )
 }
+
 

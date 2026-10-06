@@ -12,6 +12,16 @@ export const paginationSchema = z.object({
 
 export const sortOrderSchema = z.enum(['asc', 'desc']).default('desc')
 
+/**
+ * A-Z jump on the employee's first letter. Stored uppercase so ?initial=k and
+ * ?initial=K behave the same.
+ */
+export const initialSchema = z
+  .string()
+  .regex(/^[A-Za-z]$/, 'Must be a single letter')
+  .transform((value) => value.toUpperCase())
+  .optional()
+
 export const searchSchema = z.string().trim().min(1).max(120).optional()
 
 export const dateSchema = z.iso.date()

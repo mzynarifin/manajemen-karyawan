@@ -104,10 +104,11 @@ export async function listAttendance(
 
   if (scope.employeeId) request = request.eq('employee_id', scope.employeeId)
   if (query.employee_id) request = request.eq('employee_id', query.employee_id)
+  if (query.initial) request = request.ilike('employees.full_name', `${query.initial}%`)
   if (query.date_from) request = request.gte('attendance_date', query.date_from)
   if (query.date_to) request = request.lte('attendance_date', query.date_to)
   if (query.status) request = request.eq('status', query.status)
-  if (query.department_id) request = request.eq('employees!inner.department_id', query.department_id)
+  if (query.department_id) request = request.eq('employees.department_id', query.department_id)
 
   const { data, error, count } = await request
     .order(query.sort, { ascending: query.order === 'asc' })

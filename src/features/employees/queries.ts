@@ -36,6 +36,7 @@ export async function listEmployees(sb: SupabaseClient, query: EmployeeQuery) {
   let request = sb.from('employees').select(EMPLOYEE_SELECT, { count: 'exact' })
 
   if (query.search) request = request.or(orSearch(['full_name', 'employee_code', 'position'], query.search))
+  if (query.initial) request = request.ilike('full_name', `${query.initial}%`)
   if (query.department_id) request = request.eq('department_id', query.department_id)
   if (query.status) request = request.eq('status', query.status)
   if (query.employment_type) request = request.eq('employment_type', query.employment_type)
@@ -68,23 +69,31 @@ export async function listDepartments(sb: SupabaseClient) {
   return (data ?? []) as Array<{ id: string; name: string }>
 }
 
-export async function listActiveEmployees(sb: SupabaseClient, search?: string) {
+export type ActiveEmployee = {
+  id: string
+  full_name: string
+  employee_code: string
+  position: string | null
+  base_salary: number
+  department_id: string | null
+  departments: { id: string; name: string } | null
+}
+
+export async function listActiveEmployees(
+  sb: SupabaseClient,
+  search?: string,
+  limit = 200,
+): Promise<ActiveEmployee[]> {
   let request = sb
     .from('employees')
-    .select('id, full_name, employee_code, position, base_salary')
+    .select('id, full_name, employee_code, position, base_salary, department_id, departments(id, name)')
     .eq('status', 'active')
     .order('full_name')
-    .limit(200)
+    .limit(limit)
 
   if (search) request = request.or(orSearch(['full_name', 'employee_code'], search))
 
   const { data, error } = await request
   if (error) throw dbError(error)
-  return (data ?? []) as Array<{
-    id: string
-    full_name: string
-    employee_code: string
-    position: string | null
-    base_salary: number
-  }>
+  return (data ?? []) as unknown as ActiveEmployee[]
 }

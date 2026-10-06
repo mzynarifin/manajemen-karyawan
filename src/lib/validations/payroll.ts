@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { paginationSchema, uuidSchema } from '@/lib/validations/common'
+import { initialSchema, paginationSchema, uuidSchema } from '@/lib/validations/common'
 
 const amount = z.coerce.number().min(0)
 
@@ -49,6 +49,7 @@ export const payrollQuerySchema = paginationSchema.extend({
   status: z.enum(['draft', 'published']).optional(),
   department_id: uuidSchema.optional(),
   employee_id: uuidSchema.optional(),
+  initial: initialSchema,
   sort: z.enum(['created_at', 'net_salary']).default('created_at'),
   order: z.enum(['asc', 'desc']).default('desc'),
 })

@@ -10,6 +10,8 @@ import { StatusBadge } from '@/components/ui/badge'
 import { Pagination } from '@/components/ui/pagination'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterBar } from '@/components/ui/filter-bar'
+import { EmployeeIndexNav } from '@/components/ui/employee-index-nav'
+import { initialsOf } from '@/lib/utils/initials'
 import { EmptyState, ErrorState, TableSkeleton } from '@/components/ui/states'
 import { NameCell } from '@/components/ui/avatar'
 import { EmployeeActions } from '@/components/employees/employee-actions'
@@ -57,6 +59,8 @@ export default async function EmployeesPage({
   const params = await searchParams
   const query = employeeQuerySchema.parse(params)
   const departments = await listDepartments(session.supabase)
+  // One light query so the index can grey out letters nobody starts with.
+  const { data: nameRows } = await session.supabase.from('employees').select('full_name')
 
   let employees: Awaited<ReturnType<typeof listEmployees>> | null = null
   let loadError = false
@@ -85,6 +89,8 @@ export default async function EmployeesPage({
 
         <Card>
           <CardBody className="space-y-3">
+            <EmployeeIndexNav available={initialsOf((nameRows ?? []).map((row) => row.full_name))} />
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SearchInput placeholder="Search name, employee ID, position..." className="w-full max-w-sm" />
               <FilterBar

@@ -4,6 +4,8 @@ import { PageHeader, StatCard, StatGrid } from '@/components/ui/page-header'
 import { Card, CardBody } from '@/components/ui/card'
 import { Pagination } from '@/components/ui/pagination'
 import { FilterBar } from '@/components/ui/filter-bar'
+import { EmployeeIndexNav } from '@/components/ui/employee-index-nav'
+import { initialsOf } from '@/lib/utils/initials'
 import { ErrorState } from '@/components/ui/states'
 import { LeaveTable } from '@/components/leave/leave-table'
 import { requireAdminSession } from '@/lib/supabase/session'
@@ -51,7 +53,11 @@ export default async function AdminLeavePage({ searchParams }: { searchParams: P
         ) : null}
 
         <Card>
-          <CardBody>
+          <CardBody className="space-y-3">
+            <EmployeeIndexNav
+              available={initialsOf((data?.employees ?? []).map((employee) => employee.full_name))}
+            />
+
             <FilterBar
               options={{
                 status: [
@@ -100,4 +106,5 @@ export default async function AdminLeavePage({ searchParams }: { searchParams: P
     </AdminShell>
   )
 }
+
 

@@ -6,6 +6,8 @@ import { DataTable, type Column } from '@/components/ui/table'
 import { StatusBadge } from '@/components/ui/badge'
 import { Pagination } from '@/components/ui/pagination'
 import { FilterBar } from '@/components/ui/filter-bar'
+import { EmployeeIndexNav } from '@/components/ui/employee-index-nav'
+import { initialsOf } from '@/lib/utils/initials'
 import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import { EmptyState, ErrorState, TableSkeleton } from '@/components/ui/states'
 import { requireAdminSession } from '@/lib/supabase/session'
@@ -54,7 +56,9 @@ export default async function AdminAttendancePage({
     loadError = true
   }
 
-  const hasFilters = Boolean(query.date_from || query.date_to || query.status || query.department_id || query.employee_id)
+  const hasFilters = Boolean(
+    query.date_from || query.date_to || query.status || query.department_id || query.employee_id || query.initial,
+  )
 
   return (
     <AdminShell title="Attendance">
@@ -62,7 +66,9 @@ export default async function AdminAttendancePage({
         <PageHeader title="Attendance" description="Monitor employee attendance records." />
 
         <Card>
-          <CardBody>
+          <CardBody className="space-y-3">
+            <EmployeeIndexNav available={initialsOf(employees.map((employee) => employee.full_name))} />
+
             <FilterBar
               options={{
                 status: [

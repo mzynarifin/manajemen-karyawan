@@ -36,6 +36,7 @@ export async function listLeave(sb: SupabaseClient, query: LeaveQuery, scope: { 
 
   if (scope.employeeId) request = request.eq('employee_id', scope.employeeId)
   if (query.employee_id) request = request.eq('employee_id', query.employee_id)
+  if (query.initial) request = request.ilike('employees.full_name', `${query.initial}%`)
   if (query.status) request = request.eq('status', query.status)
   if (query.leave_type) request = request.eq('leave_type', query.leave_type)
   if (query.date_from) request = request.gte('start_date', query.date_from)
