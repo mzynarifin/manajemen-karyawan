@@ -1,11 +1,12 @@
 import { initials } from '@/lib/formatters'
 
 type Size = 'sm' | 'md' | 'lg'
+type SizeConfig = { box: string; text: string; pixels: number; fit: 'object-cover' | 'object-contain' }
 
-const SIZES: Record<Size, { box: string; text: string }> = {
-  sm: { box: 'h-7 w-7', text: 'text-[11px]' },
-  md: { box: 'h-9 w-9', text: 'text-[13px]' },
-  lg: { box: 'h-14 w-14', text: 'text-lg' },
+const SIZES: Record<Size, SizeConfig> = {
+  sm: { box: 'h-7 w-7', text: 'text-[11px]', pixels: 28, fit: 'object-cover' },
+  md: { box: 'h-9 w-9', text: 'text-[13px]', pixels: 36, fit: 'object-cover' },
+  lg: { box: 'h-14 w-14', text: 'text-lg', pixels: 56, fit: 'object-contain' },
 }
 
 export function ProfileAvatar({
@@ -26,9 +27,11 @@ export function ProfileAvatar({
       <img
         src={src}
         alt=""
-        loading="lazy"
+        width={dimension.pixels}
+        height={dimension.pixels}
+        loading={size === 'lg' ? 'eager' : 'lazy'}
         decoding="async"
-        className={`${dimension.box} shrink-0 rounded-full border border-line object-cover`}
+        className={`${dimension.box} shrink-0 rounded-full border border-line bg-canvas ${dimension.fit} object-center`}
       />
     )
   }
