@@ -24,5 +24,3 @@ export const myReportQuerySchema = z.object({
   period_year: z.coerce.number().int().min(2000).max(2100).optional(),
   leave_type: z.enum(['annual', 'sick', 'personal']).optional(),
 })
-
-export type MyReportQuery = z.infer<typeof myReportQuerySchema>

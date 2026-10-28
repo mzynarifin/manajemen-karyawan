@@ -1,4 +1,7 @@
 import Link from 'next/link'
+import { paginationMeta } from '@/lib/utils/query'
+
+export type PaginationParams = Record<string, string | string[] | undefined>
 
 type Props = {
   page: number
@@ -6,16 +9,24 @@ type Props = {
   total: number
   /** Describes what is listed, e.g. "employees". */
   label: string
-  buildHref: (page: number) => string
+  /** Current route, e.g. "/admin/employees". */
+  basePath: string
+  /** The page's searchParams, so active filters survive a page change. */
+  searchParams?: PaginationParams
 }
 
-/** PRD section 69: Showing 1-20 of 126 employees + Previous / page / Next. */
-export function Pagination({ page, limit, total, label, buildHref }: Props) {
-  const totalPages = Math.max(1, Math.ceil(total / limit))
+/**
+ * PRD section 69: Showing 1-20 of 126 employees + Previous / page / Next.
+ * The hrefs are derived from basePath and the live filters, so every list page
+ * does not have to re-implement the same "copy params, swap page" loop.
+ */
+export function Pagination({ page, limit, total, label, basePath, searchParams }: Props) {
+  const { totalPages } = paginationMeta(page, limit, total)
   const from = total === 0 ? 0 : (page - 1) * limit + 1
   const to = Math.min(page * limit, total)
 
   const pages = pageWindow(page, totalPages)
+  const buildHref = (target: number) => pageHref(basePath, searchParams, target)
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
@@ -75,6 +86,22 @@ export function Pagination({ page, limit, total, label, buildHref }: Props) {
       </nav>
     </div>
   )
+}
+
+/** Keeps every active filter, swaps only `page`. */
+export function pageHref(
+  basePath: string,
+  searchParams: PaginationParams | undefined,
+  page: number,
+): string {
+  const query = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(searchParams ?? {})) {
+    if (typeof value === 'string' && value && key !== 'page') query.set(key, value)
+  }
+
+  query.set('page', String(page))
+  return `${basePath}?${query.toString()}`
 }
 
 function pageWindow(page: number, totalPages: number): Array<number | 'gap'> {

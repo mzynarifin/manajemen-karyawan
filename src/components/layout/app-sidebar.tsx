@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Bell,
   CalendarDays,
@@ -19,40 +19,36 @@ import {
 } from 'lucide-react'
 import { logoutAction } from '@/features/auth/actions'
 import { ProfileAvatar } from '@/components/ui/avatar'
+import { isActiveNav, navFor } from '@/components/layout/nav-config'
+import { UnreadCountBadge } from '@/components/layout/unread-count-badge'
 import type { Role } from '@/types'
 
-const ADMIN_MENU = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/employees', label: 'Employees', icon: Users },
-  { href: '/admin/attendance', label: 'Attendance', icon: CheckCircle2 },
-  { href: '/admin/leave', label: 'Leave Requests', icon: ClipboardList },
-  { href: '/admin/payroll', label: 'Payroll', icon: Receipt },
-  { href: '/admin/reports', label: 'Reports', icon: FileText },
-  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
-  { href: '/admin/profile', label: 'Profile', icon: CircleUser },
-]
+/**
+ * Admin and employee name their leave section differently, so the icon is a
+ * separate lookup rather than a key on the nav item itself.
+ */
+const ICONS = {
+  dashboard: LayoutDashboard,
+  employees: Users,
+  attendance: CheckCircle2,
+  payroll: Receipt,
+  reports: FileText,
+  notifications: Bell,
+  profile: CircleUser,
+}
 
-const EMPLOYEE_MENU = [
-  { href: '/employee/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/employee/attendance', label: 'Attendance', icon: CheckCircle2 },
-  { href: '/employee/leave', label: 'Leave', icon: CalendarDays },
-  { href: '/employee/payslip', label: 'Payslip', icon: Receipt },
-  { href: '/employee/reports', label: 'My Reports', icon: FileText },
-  { href: '/employee/notifications', label: 'Notifications', icon: Bell },
-  { href: '/employee/profile', label: 'Profile', icon: CircleUser },
-]
-
-export type SidebarProps = {
+type SidebarProps = {
   role: Role
   name: string
   avatarUrl: string | null
-  unreadCount: number
+  unreadCount: Promise<number>
 }
 
 /** PRD section 11-13: 240px, white, subtle right border, no card per item. */
 export function AppSidebar({ role, name, avatarUrl, unreadCount }: SidebarProps) {
   const pathname = usePathname()
-  const menu = role === 'admin' ? ADMIN_MENU : EMPLOYEE_MENU
+  const router = useRouter()
+  const menu = navFor(role)
   const [loggingOut, setLoggingOut] = useState(false)
 
   async function handleLogout() {
@@ -74,15 +70,19 @@ export function AppSidebar({ role, name, avatarUrl, unreadCount }: SidebarProps)
 
       <nav aria-label="Main" className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {menu.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-          const Icon = item.icon
-          const badge = item.href.endsWith('/notifications') && unreadCount > 0 ? unreadCount : null
-
+          const isActive = isActiveNav(pathname, item.href)
+          const Icon = item.icon === 'leave' ? (role === 'admin' ? ClipboardList : CalendarDays) : ICONS[item.icon]
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={isActive ? 'page' : undefined}
+              // Viewport prefetching would fire every section's queries at once
+              // on first paint. Warming on intent keeps a click instant without
+              // that burst; onFocus covers keyboard navigation.
+              prefetch={false}
+              onMouseEnter={() => router.prefetch(item.href)}
+              onFocus={() => router.prefetch(item.href)}
               className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-colors duration-150 ${
                 isActive
                   ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-200'
@@ -91,10 +91,8 @@ export function AppSidebar({ role, name, avatarUrl, unreadCount }: SidebarProps)
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden />
               <span className="flex-1 truncate">{item.label}</span>
-              {badge && (
-                <span className="rounded-full bg-brand-700 px-1.5 text-[11px] font-medium leading-4 text-white">
-                  {badge}
-                </span>
+              {item.href.endsWith('/notifications') && (
+                <UnreadCountBadge count={unreadCount} variant="sidebar" />
               )}
             </Link>
           )
@@ -143,11 +141,7 @@ export function MobileSidebar(props: SidebarProps) {
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 animate-fade-in bg-ink/40"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
+          <div className="absolute inset-0 animate-fade-in bg-ink/40" onClick={() => setOpen(false)} aria-hidden />
           <div className="relative h-full w-60">
             <AppSidebar {...props} />
             <button

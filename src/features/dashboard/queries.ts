@@ -22,15 +22,34 @@ export async function listRecentActivity(sb: SupabaseClient, limit = 8) {
   return (data ?? []) as unknown as ActivityItem[]
 }
 
-export async function countAttendanceToday(sb: SupabaseClient, date: string, status: string) {
-  const { count, error } = await sb
-    .from('attendance')
-    .select('id', { count: 'exact', head: true })
-    .eq('attendance_date', date)
-    .eq('status', status)
+/**
+ * Headcount per attendance status for one day.
+ *
+ * The dashboard needs present/late/absent together, so it used to call a
+ * per-status helper three times from the page. The status list now lives here
+ * and the counts are issued together rather than by the caller.
+ */
+export async function attendanceCountsByStatus(sb: SupabaseClient, date: string) {
+  const statuses = ['present', 'late', 'absent', 'leave'] as const
 
-  if (error) throw dbError(error)
-  return count ?? 0
+  const results = await Promise.all(
+    statuses.map((status) =>
+      sb
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('attendance_date', date)
+        .eq('status', status),
+    ),
+  )
+
+  const counts = {} as Record<(typeof statuses)[number], number>
+  statuses.forEach((status, index) => {
+    const error = results[index].error
+    if (error) throw dbError(error)
+    counts[status] = results[index].count ?? 0
+  })
+
+  return counts
 }
 
 /** Employees with an approved leave covering today (PRD dashboard: On Leave). */
@@ -66,10 +85,7 @@ export async function sumPayrollPeriod(sb: SupabaseClient, month: number, year: 
 
 /** Employee report for the dashboard chart (PRD section 17). */
 export async function departmentDistribution(sb: SupabaseClient) {
-  const { data, error } = await sb
-    .from('departments')
-    .select('id, name, employees(count)')
-    .order('name')
+  const { data, error } = await sb.from('departments').select('id, name, employees(count)').order('name')
 
   if (error) throw dbError(error)
 

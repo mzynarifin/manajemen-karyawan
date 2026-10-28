@@ -105,7 +105,6 @@ export function ConfirmDialog({
   confirmLabel,
   loading,
   destructive = false,
-  children,
 }: {
   open: boolean
   onClose: () => void
@@ -115,7 +114,6 @@ export function ConfirmDialog({
   confirmLabel: string
   loading?: boolean
   destructive?: boolean
-  children?: React.ReactNode
 }) {
   return (
     <Dialog
@@ -134,7 +132,6 @@ export function ConfirmDialog({
       }
     >
       <p className="text-[13px] text-muted">{description}</p>
-      {children}
     </Dialog>
   )
 }

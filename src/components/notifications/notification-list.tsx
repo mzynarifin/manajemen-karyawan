@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/states'
 import { useToast } from '@/components/ui/toast'
 import { markAllNotificationsReadAction, markNotificationReadAction } from '@/features/notifications/actions'
 import { formatRelative } from '@/lib/formatters'
-import type { NotificationRow } from '@/features/notifications/queries'
+import type { Notification } from '@/types'
 
 const TYPE_LABELS: Record<string, string> = {
   leave: 'Leave',
@@ -18,7 +18,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 /** PRD section 52: mark as read is the only optimistic action allowed. */
-export function NotificationList({ items }: { items: NotificationRow[] }) {
+export function NotificationList({ items }: { items: Notification[] }) {
   const router = useRouter()
   const toast = useToast()
   const [pending, startTransition] = useTransition()

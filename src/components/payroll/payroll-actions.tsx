@@ -7,12 +7,10 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
 import { publishPayrollAction } from '@/features/payroll/actions'
-import type { PayrollRow } from '@/features/payroll/queries'
+import type { PayrollRow } from '@/services/payroll.service'
 
 /** PRD section 35: draft can edit + publish, published opens the payslip. */
 export function PayrollRowActions({ payroll }: { payroll: PayrollRow }) {
-  const [confirming, setConfirming] = useState(false)
-
   if (payroll.status === 'published') {
     return (
       <Link href={`/admin/payroll/${payroll.id}`}>
@@ -30,19 +28,13 @@ export function PayrollRowActions({ payroll }: { payroll: PayrollRow }) {
           Edit
         </Button>
       </Link>
-      <PublishPayrollButton payrollId={payroll.id} onOpenChange={setConfirming} />
+      <PublishPayrollButton payrollId={payroll.id} />
     </div>
   )
 }
 
 /** Publish with confirmation (PRD section 36). */
-export function PublishPayrollButton({
-  payrollId,
-  onOpenChange,
-}: {
-  payrollId: string
-  onOpenChange?: (open: boolean) => void
-}) {
+export function PublishPayrollButton({ payrollId }: { payrollId: string }) {
   const router = useRouter()
   const toast = useToast()
   const [pending, startTransition] = useTransition()
@@ -54,7 +46,6 @@ export function PublishPayrollButton({
       toast.push(result.message, result.ok ? 'success' : 'error')
       if (result.ok) {
         setConfirming(false)
-        onOpenChange?.(false)
         router.refresh()
       }
     })

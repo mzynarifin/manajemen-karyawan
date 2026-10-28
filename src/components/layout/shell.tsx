@@ -14,20 +14,18 @@ async function unreadCount(supabase: SupabaseClient, userId: string) {
   return count ?? 0
 }
 
-/** PRD section 10: fixed sidebar, scrollable main, header on top. */
-async function Shell({
-  children,
-  title,
-  notificationsHref,
-  area,
-}: {
-  children: React.ReactNode
-  title: string
-  notificationsHref: string
-  area: 'admin' | 'employee'
-}) {
+/**
+ * PRD section 10: fixed sidebar, scrollable main, header on top.
+ *
+ * Lives in the route layout, not in each page, so the chrome survives
+ * navigation: a page's loading.tsx then swaps only the content area instead of
+ * tearing down the sidebar and header.
+ */
+export async function Shell({ children, area }: { children: React.ReactNode; area: 'admin' | 'employee' }) {
   const session = area === 'admin' ? await requireAdminSession() : await requireEmployeeSession()
-  const unread = await unreadCount(session.supabase, session.userId)
+  // The navigation badge does not need to hold up the page. Passing the
+  // request promise lets the small badge boundaries resolve after the shell.
+  const unread = unreadCount(session.supabase, session.userId)
 
   const identity = {
     role: session.role,
@@ -35,37 +33,20 @@ async function Shell({
     avatarUrl: session.profile.avatar_url,
     unreadCount: unread,
   }
+  const notificationsHref = area === 'admin' ? '/admin/notifications' : '/employee/notifications'
 
   return (
-    <div className="flex min-h-screen bg-canvas">
-      <aside className="sticky top-0 hidden h-screen shrink-0 lg:block">
-        <AppSidebar {...identity} />
-      </aside>
+    <ToastProvider>
+      <div className="flex min-h-screen bg-canvas">
+        <aside className="sticky top-0 hidden h-screen shrink-0 lg:block">
+          <AppSidebar {...identity} />
+        </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopHeader {...identity} title={title} notificationsHref={notificationsHref} />
-        <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopHeader {...identity} notificationsHref={notificationsHref} />
+          <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
+        </div>
       </div>
-    </div>
-  )
-}
-
-export async function AdminShell({ children, title }: { children: React.ReactNode; title: string }) {
-  return (
-    <ToastProvider>
-      <Shell area="admin" title={title} notificationsHref="/admin/notifications">
-        {children}
-      </Shell>
-    </ToastProvider>
-  )
-}
-
-export async function EmployeeShell({ children, title }: { children: React.ReactNode; title: string }) {
-  return (
-    <ToastProvider>
-      <Shell area="employee" title={title} notificationsHref="/employee/notifications">
-        {children}
-      </Shell>
     </ToastProvider>
   )
 }

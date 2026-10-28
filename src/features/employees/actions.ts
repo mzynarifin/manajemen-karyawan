@@ -1,25 +1,16 @@
 'use server'
 
-import type { ZodError } from 'zod'
-import { actionFailure, actionSuccess, type ActionResult } from '@/lib/action-result'
-import { requireAdminSession } from '@/lib/supabase/session'
 import {
-  employeeCreateSchema,
-  employeeUpdateSchema,
-} from '@/lib/validations/employee'
+  actionFailure,
+  actionSuccess,
+  actionValidationFailure,
+  type ActionResult,
+} from '@/lib/action-result'
+import { requireAdminSession } from '@/lib/supabase/session'
+import { employeeCreateSchema, employeeUpdateSchema } from '@/lib/validations/employee'
 import { createEmployee, setEmployeeActive, updateEmployee } from '@/services/employee.service'
 
-/** The form only needs the first message per field to show it under the input. */
-function zodFieldErrors(error: ZodError): Record<string, string> {
-  const fieldErrors: Record<string, string> = {}
-  for (const issue of error.issues) {
-    const field = issue.path.join('.')
-    if (field && !fieldErrors[field]) fieldErrors[field] = issue.message
-  }
-  return fieldErrors
-}
-
-export type EmployeeCreateForm = {
+type EmployeeCreateForm = {
   full_name: string
   email: string
   employee_code?: string
@@ -52,14 +43,7 @@ export async function createEmployeeAction(input: EmployeeCreateForm): Promise<A
     break_minutes: input.break_minutes || 0,
   })
 
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: 'Please check the highlighted fields.',
-      code: 'VALIDATION_ERROR',
-      fieldErrors: zodFieldErrors(parsed.error),
-    }
-  }
+  if (!parsed.success) return actionValidationFailure(parsed.error)
 
   try {
     const employee = await createEmployee(session.userId, parsed.data)
@@ -100,14 +84,7 @@ export async function updateEmployeeAction(id: string, input: EmployeeUpdateForm
     break_minutes: input.break_minutes || 0,
   })
 
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: 'Please check the highlighted fields.',
-      code: 'VALIDATION_ERROR',
-      fieldErrors: zodFieldErrors(parsed.error),
-    }
-  }
+  if (!parsed.success) return actionValidationFailure(parsed.error)
 
   try {
     const employee = await updateEmployee(id, parsed.data, session.userId)

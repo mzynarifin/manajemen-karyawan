@@ -56,13 +56,7 @@ export function formatCurrencyShort(value: number | null | undefined): string {
   return formatCurrency(amount)
 }
 
-export function formatMonthYear(month: number, year: number): string {
-  const label = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(
-    new Date(Date.UTC(year, month - 1, 1)),
-  )
-  return label
-}
-
+/** 07/2026 */
 export function formatPeriod(month: number, year: number): string {
   return `${String(month).padStart(2, '0')}/${year}`
 }

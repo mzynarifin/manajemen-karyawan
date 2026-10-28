@@ -5,9 +5,7 @@ type SortState = { column: string; order: 'asc' | 'desc' }
 export type Column<T> = {
   key: string
   header: string
-  sortable?: boolean
   align?: 'left' | 'right' | 'center'
-  width?: string
   cell: (row: T) => ReactNode
 }
 
@@ -15,29 +13,22 @@ type DataTableProps<T> = {
   columns: Column<T>[]
   rows: T[]
   rowKey: (row: T) => string
+  /** Marks the active sort column so the header reads as sorted. */
   sort?: SortState
   empty?: ReactNode
-  className?: string
 }
 
 /**
  * PRD section 22: minimal borders, subtle header, light row hover,
  * horizontal scroll on mobile instead of turning rows into cards.
  */
-export function DataTable<T>({
-  columns,
-  rows,
-  rowKey,
-  sort,
-  empty,
-  className = '',
-}: DataTableProps<T>) {
+export function DataTable<T>({ columns, rows, rowKey, sort, empty }: DataTableProps<T>) {
   if (rows.length === 0 && empty) {
     return <>{empty}</>
   }
 
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    <div className="overflow-x-auto">
       <table className="w-full min-w-full border-collapse text-left">
         <thead>
           <tr className="border-b border-line bg-canvas/60">
@@ -45,7 +36,6 @@ export function DataTable<T>({
               <th
                 key={column.key}
                 scope="col"
-                style={column.width ? { width: column.width } : undefined}
                 aria-sort={
                   sort?.column === column.key
                     ? sort.order === 'asc'
@@ -57,7 +47,7 @@ export function DataTable<T>({
                   column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : ''
                 }`}
               >
-                {column.sortable && sort?.column === column.key ? (
+                {sort?.column === column.key ? (
                   <span className="inline-flex items-center gap-1 text-ink">
                     {column.header}
                     <span aria-hidden>{sort.order === 'asc' ? '↑' : '↓'}</span>

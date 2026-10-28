@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import { AdminShell } from '@/components/layout/shell'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardBody } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,15 +9,14 @@ import { StatusBadge } from '@/components/ui/badge'
 import { Pagination } from '@/components/ui/pagination'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterBar } from '@/components/ui/filter-bar'
-import { EmployeeIndexNav } from '@/components/ui/employee-index-nav'
-import { initialsOf } from '@/lib/utils/initials'
-import { EmptyState, ErrorState, TableSkeleton } from '@/components/ui/states'
+import { EmptyState, ErrorState } from '@/components/ui/states'
 import { NameCell } from '@/components/ui/avatar'
 import { EmployeeActions } from '@/components/employees/employee-actions'
 import { requireAdminSession } from '@/lib/supabase/session'
 import { employeeQuerySchema } from '@/lib/validations/employee'
 import { formatDate } from '@/lib/formatters'
-import { listDepartments, listEmployees, type EmployeeRow } from '@/features/employees/queries'
+import { listEmployees, type EmployeeRow } from '@/services/employee.service'
+import { listDepartmentOptions } from '@/services/department.service'
 
 export const metadata: Metadata = { title: 'Employees' }
 
@@ -50,122 +48,103 @@ const columns: Column<EmployeeRow>[] = [
   },
 ]
 
-export default async function EmployeesPage({
-  searchParams,
-}: {
-  searchParams: Promise<Search>
-}) {
+export default async function EmployeesPage({ searchParams }: { searchParams: Promise<Search> }) {
   const session = await requireAdminSession()
   const params = await searchParams
   const query = employeeQuerySchema.parse(params)
-  const departments = await listDepartments(session.supabase)
-  // One light query so the index can grey out letters nobody starts with.
-  const { data: nameRows } = await session.supabase.from('employees').select('full_name')
 
-  let employees: Awaited<ReturnType<typeof listEmployees>> | null = null
-  let loadError = false
-
-  try {
-    employees = await listEmployees(session.supabase, query)
-  } catch {
-    loadError = true
-  }
+  // Departments feed the filter bar and the list feeds the table; neither needs
+  // the other, so they go out together instead of one round trip after the other.
+  // A null list means the query failed: the route's loading.tsx already covers
+  // the transition, so there is no skeleton state to render here.
+  const [departments, employees] = await Promise.all([
+    listDepartmentOptions(session.supabase),
+    listEmployees(session.supabase, query).catch(() => null),
+  ])
 
   return (
-    <AdminShell title="Employees">
-      <div className="space-y-4">
-        <PageHeader
-          title="Employees"
-          description="Manage employee records and employment information."
-          action={
-            <Link href="/admin/employees/new">
-              <Button>
-                <Plus className="h-4 w-4" aria-hidden />
-                Add Employee
-              </Button>
-            </Link>
-          }
-        />
+    <div className="space-y-4">
+      <PageHeader
+        title="Employees"
+        description="Manage employee records and employment information."
+        action={
+          <Link href="/admin/employees/new">
+            <Button>
+              <Plus className="h-4 w-4" aria-hidden />
+              Add Employee
+            </Button>
+          </Link>
+        }
+      />
 
-        <Card>
-          <CardBody className="space-y-3">
-            <EmployeeIndexNav available={initialsOf((nameRows ?? []).map((row) => row.full_name))} />
+      <Card>
+        <CardBody className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SearchInput placeholder="Search name, employee ID, position..." className="w-full max-w-sm" />
+            <FilterBar
+              options={{
+                department_id: [
+                  { value: '', label: 'All departments' },
+                  ...departments.map((department) => ({ value: department.id, label: department.name })),
+                ],
+                employment_type: [
+                  { value: '', label: 'All types' },
+                  { value: 'permanent', label: 'Permanent' },
+                  { value: 'contract', label: 'Contract' },
+                ],
+                status: [
+                  { value: '', label: 'All statuses' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ],
+              }}
+            />
+          </div>
+        </CardBody>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <SearchInput placeholder="Search name, employee ID, position..." className="w-full max-w-sm" />
-              <FilterBar
-                options={{
-                  department_id: [
-                    { value: '', label: 'All departments' },
-                    ...departments.map((department) => ({ value: department.id, label: department.name })),
-                  ],
-                  employment_type: [
-                    { value: '', label: 'All types' },
-                    { value: 'permanent', label: 'Permanent' },
-                    { value: 'contract', label: 'Contract' },
-                  ],
-                  status: [
-                    { value: '', label: 'All statuses' },
-                    { value: 'active', label: 'Active' },
-                    { value: 'inactive', label: 'Inactive' },
-                  ],
-                }}
-              />
-            </div>
-          </CardBody>
-
-          {loadError ? (
-            <ErrorState title="Unable to load employees" description="Employee data could not be loaded." />
-          ) : !employees ? (
-            <TableSkeleton rows={8} columns={7} />
-          ) : (
-            <>
-              <DataTable
-                columns={columns}
-                rows={employees.items}
-                rowKey={(row) => row.id}
-                sort={{ column: query.sort, order: query.order }}
-                empty={
-                  <EmptyState
-                    title={
-                      query.search || query.department_id || query.status || query.employment_type
-                        ? 'No results found for the selected filters.'
-                        : 'No employees yet'
-                    }
-                    description={
-                      query.search || query.department_id || query.status || query.employment_type
-                        ? undefined
-                        : 'Add your first employee to start managing your workforce.'
-                    }
-                    action={
-                      <Link href="/admin/employees/new">
-                        <Button size="sm">
-                          <Plus className="h-4 w-4" aria-hidden />
-                          Add Employee
-                        </Button>
-                      </Link>
-                    }
-                  />
-                }
-              />
-              <Pagination
-                page={query.page}
-                limit={query.limit}
-                total={employees.pagination.total}
-                label="employees"
-                buildHref={(page) => {
-                  const next = new URLSearchParams()
-                  for (const [key, value] of Object.entries(params)) {
-                    if (typeof value === 'string' && value && key !== 'page') next.set(key, value)
+        {!employees ? (
+          <ErrorState title="Unable to load employees" description="Employee data could not be loaded." />
+        ) : (
+          <>
+            <DataTable
+              columns={columns}
+              rows={employees.items}
+              rowKey={(row) => row.id}
+              sort={{ column: query.sort, order: query.order }}
+              empty={
+                <EmptyState
+                  title={
+                    query.search || query.department_id || query.status || query.employment_type
+                      ? 'No results found for the selected filters.'
+                      : 'No employees yet'
                   }
-                  next.set('page', String(page))
-                  return `/admin/employees?${next.toString()}`
-                }}
-              />
-            </>
-          )}
-        </Card>
-      </div>
-    </AdminShell>
+                  description={
+                    query.search || query.department_id || query.status || query.employment_type
+                      ? undefined
+                      : 'Add your first employee to start managing your workforce.'
+                  }
+                  action={
+                    <Link href="/admin/employees/new">
+                      <Button size="sm">
+                        <Plus className="h-4 w-4" aria-hidden />
+                        Add Employee
+                      </Button>
+                    </Link>
+                  }
+                />
+              }
+            />
+            <Pagination
+              page={query.page}
+              limit={query.limit}
+              total={employees.pagination.total}
+              label="employees"
+              basePath="/admin/employees"
+              searchParams={params}
+            />
+          </>
+        )}
+      </Card>
+    </div>
   )
 }

@@ -26,6 +26,8 @@ export function ProfileAvatar({
       <img
         src={src}
         alt=""
+        loading="lazy"
+        decoding="async"
         className={`${dimension.box} shrink-0 rounded-full border border-line object-cover`}
       />
     )

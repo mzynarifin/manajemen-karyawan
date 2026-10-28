@@ -1,43 +1,14 @@
 'use server'
 
-import { actionFailure, actionSuccess, type ActionResult } from '@/lib/action-result'
+import {
+  actionFailure,
+  actionSuccess,
+  actionValidationFailure,
+  type ActionResult,
+} from '@/lib/action-result'
 import { requireAdminSession } from '@/lib/supabase/session'
-import { payrollBatchCreateSchema, payrollCreateSchema, payrollUpdateSchema } from '@/lib/validations/payroll'
-import { createPayroll, createPayrollBatch, publishPayroll, updatePayroll } from '@/services/payroll.service'
-
-export type PayrollForm = {
-  employee_id: string
-  period_month: string
-  period_year: string
-  base_salary: string
-  allowance?: string
-  bonus?: string
-  deduction?: string
-}
-
-export async function createPayrollAction(input: PayrollForm): Promise<ActionResult> {
-  const session = await requireAdminSession()
-  const parsed = payrollCreateSchema.safeParse({
-    employee_id: input.employee_id,
-    period_month: input.period_month,
-    period_year: input.period_year,
-    base_salary: input.base_salary || 0,
-    allowance: input.allowance || 0,
-    bonus: input.bonus || 0,
-    deduction: input.deduction || 0,
-  })
-
-  if (!parsed.success) {
-    return { ok: false, message: 'Please check the highlighted fields.' }
-  }
-
-  try {
-    const payroll = await createPayroll(session.userId, parsed.data)
-    return actionSuccess('Payroll created as draft.', payroll)
-  } catch (error) {
-    return actionFailure(error)
-  }
-}
+import { payrollBatchCreateSchema, payrollUpdateSchema } from '@/lib/validations/payroll'
+import { createPayrollBatch, publishPayroll, updatePayroll } from '@/services/payroll.service'
 
 export type PayrollBatchItem = {
   employee_id: string
@@ -68,14 +39,7 @@ export async function createPayrollBatchAction(input: PayrollBatchForm): Promise
     })),
   })
 
-  if (!parsed.success) {
-    const fieldErrors: Record<string, string> = {}
-    for (const issue of parsed.error.issues) {
-      const field = issue.path.join('.')
-      if (field && !fieldErrors[field]) fieldErrors[field] = issue.message
-    }
-    return { ok: false, message: 'Please check the highlighted fields.', code: 'VALIDATION_ERROR', fieldErrors }
-  }
+  if (!parsed.success) return actionValidationFailure(parsed.error)
 
   try {
     const result = await createPayrollBatch(session.userId, parsed.data)
@@ -100,9 +64,7 @@ export async function updatePayrollAction(
     deduction: input.deduction || undefined,
   })
 
-  if (!parsed.success) {
-    return { ok: false, message: 'Please check the highlighted fields.' }
-  }
+  if (!parsed.success) return actionValidationFailure(parsed.error)
 
   try {
     const payroll = await updatePayroll(id, parsed.data, session.userId)

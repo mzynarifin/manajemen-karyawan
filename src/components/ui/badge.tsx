@@ -9,7 +9,7 @@ const TONES: Record<Tone, string> = {
   info: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-400/30',
 }
 
-export const STATUS_TONE: Record<string, Tone> = {
+const STATUS_TONE: Record<string, Tone> = {
   // PRD section 59
   active: 'success',
   present: 'success',
@@ -51,14 +51,6 @@ export function StatusBadge({ value, tone }: { value: string; tone?: Tone }) {
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[resolved]}`}
     >
       {label}
-    </span>
-  )
-}
-
-export function Badge({ value, tone = 'neutral' }: { value: string; tone?: Tone }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[tone]}`}>
-      {LABELS[value] ?? value}
     </span>
   )
 }

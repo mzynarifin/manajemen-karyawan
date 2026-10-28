@@ -9,6 +9,18 @@ import { logActivity } from '@/services/audit.service'
 
 const DEPARTMENT_SELECT = '*, employees(count)'
 
+export type DepartmentOption = { id: string; name: string }
+
+/**
+ * Every department as a flat id/name list, for the dropdown filters and the
+ * forms. Distinct from listDepartments above, which is the paginated REST list.
+ */
+export async function listDepartmentOptions(sb: SupabaseClient): Promise<DepartmentOption[]> {
+  const { data, error } = await sb.from('departments').select('id, name').order('name')
+  if (error) throw dbError(error)
+  return (data ?? []) as DepartmentOption[]
+}
+
 export async function listDepartments(sb: SupabaseClient, query: DepartmentQuery) {
   const sort = resolveSort(query.sort, query.order, ['created_at', 'name'], 'name')
   const { from, to } = range(query.page, query.limit)

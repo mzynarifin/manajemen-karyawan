@@ -1,11 +1,16 @@
 'use server'
 
-import { actionFailure, actionSuccess, type ActionResult } from '@/lib/action-result'
+import {
+  actionFailure,
+  actionSuccess,
+  actionValidationFailure,
+  type ActionResult,
+} from '@/lib/action-result'
 import { requireAdminSession, requireEmployeeSession } from '@/lib/supabase/session'
 import { leaveCreateSchema, leaveRejectSchema } from '@/lib/validations/leave'
 import { approveLeave, createLeave, rejectLeave } from '@/services/leave.service'
 
-export type LeaveForm = {
+type LeaveForm = {
   leave_type: 'annual' | 'sick' | 'personal'
   start_date: string
   end_date: string
@@ -16,9 +21,7 @@ export async function submitLeaveAction(input: LeaveForm): Promise<ActionResult>
   const session = await requireEmployeeSession()
   const parsed = leaveCreateSchema.safeParse(input)
 
-  if (!parsed.success) {
-    return { ok: false, message: 'End date must be after start date.' }
-  }
+  if (!parsed.success) return actionValidationFailure(parsed.error)
 
   try {
     const leave = await createLeave(session, parsed.data)
@@ -43,9 +46,7 @@ export async function rejectLeaveAction(id: string, reason: string): Promise<Act
   const session = await requireAdminSession()
   const parsed = leaveRejectSchema.safeParse({ reason })
 
-  if (!parsed.success) {
-    return { ok: false, message: 'A rejection reason is required.' }
-  }
+  if (!parsed.success) return actionValidationFailure(parsed.error)
 
   try {
     const leave = await rejectLeave(session, id, parsed.data.reason)

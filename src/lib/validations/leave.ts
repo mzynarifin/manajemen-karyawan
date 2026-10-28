@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { initialSchema, paginationSchema, uuidSchema } from '@/lib/validations/common'
+import { paginationSchema, uuidSchema } from '@/lib/validations/common'
 
 export const leaveCreateSchema = z
   .object({
@@ -23,7 +23,6 @@ export const leaveQuerySchema = paginationSchema.extend({
   employee_id: uuidSchema.optional(),
   date_from: z.iso.date().optional(),
   date_to: z.iso.date().optional(),
-  initial: initialSchema,
   sort: z.enum(['created_at', 'start_date']).default('created_at'),
   order: z.enum(['asc', 'desc']).default('desc'),
 })

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { initialSchema, paginationSchema, uuidSchema } from '@/lib/validations/common'
+import { paginationSchema, uuidSchema } from '@/lib/validations/common'
 
 const amount = z.coerce.number().min(0)
 
@@ -40,7 +40,12 @@ export const payrollBatchCreateSchema = z.object({
 })
 
 export const payrollUpdateSchema = z
-  .object({ ...amounts, base_salary: amount.optional(), allowance: amount.optional(), bonus: amount.optional(), deduction: amount.optional() })
+  .object({
+    base_salary: amount.optional(),
+    allowance: amount.optional(),
+    bonus: amount.optional(),
+    deduction: amount.optional(),
+  })
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' })
 
 export const payrollQuerySchema = paginationSchema.extend({
@@ -49,7 +54,6 @@ export const payrollQuerySchema = paginationSchema.extend({
   status: z.enum(['draft', 'published']).optional(),
   department_id: uuidSchema.optional(),
   employee_id: uuidSchema.optional(),
-  initial: initialSchema,
   sort: z.enum(['created_at', 'net_salary']).default('created_at'),
   order: z.enum(['asc', 'desc']).default('desc'),
 })

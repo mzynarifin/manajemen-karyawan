@@ -7,6 +7,7 @@ import { CurrencyInput, Field } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { updatePayrollAction } from '@/features/payroll/actions'
 import { formatCurrency } from '@/lib/formatters'
+import { netSalary } from '@/lib/payroll'
 
 type Props = {
   payroll: {
@@ -31,11 +32,12 @@ export function PayrollEditForm({ payroll }: Props) {
     deduction: String(payroll.deduction ?? 0),
   })
 
-  const net =
-    Number(values.base_salary || 0) +
-    Number(values.allowance || 0) +
-    Number(values.bonus || 0) -
-    Number(values.deduction || 0)
+  const net = netSalary({
+    base_salary: Number(values.base_salary || 0),
+    allowance: Number(values.allowance || 0),
+    bonus: Number(values.bonus || 0),
+    deduction: Number(values.deduction || 0),
+  })
 
   function save() {
     setError(null)

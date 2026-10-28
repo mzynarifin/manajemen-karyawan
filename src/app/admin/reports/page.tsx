@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { AdminShell } from '@/components/layout/shell'
 import { PageHeader, StatCard, StatGrid } from '@/components/ui/page-header'
 import { Tabs } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -106,16 +105,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <AdminShell title="Reports">
-      <div className="space-y-4">
-        <PageHeader title="Reports" description="Summary of workforce, attendance, leave and payroll." />
+    <div className="space-y-4">
+      <PageHeader title="Reports" description="Summary of workforce, attendance, leave and payroll." />
 
-        <Tabs items={tabs} active={query.type} />
+      <Tabs items={tabs} active={query.type} />
 
-        <ReportFilterBar type={query.type} current={query} basePath="/admin/reports" />
+      <ReportFilterBar type={query.type} current={query} basePath="/admin/reports" />
 
-        {content}
-      </div>
-    </AdminShell>
+      {content}
+    </div>
   )
 }

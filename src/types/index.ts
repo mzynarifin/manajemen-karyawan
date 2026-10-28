@@ -118,13 +118,3 @@ export interface Notification {
   is_read: boolean
   created_at: string
 }
-
-export interface AuditLog {
-  id: string
-  user_id: string | null
-  action: string
-  entity: string
-  entity_id: string | null
-  description: string | null
-  created_at: string
-}

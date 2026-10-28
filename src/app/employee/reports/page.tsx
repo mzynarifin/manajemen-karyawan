@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { EmployeeShell } from '@/components/layout/shell'
 import { PageHeader, StatCard, StatGrid } from '@/components/ui/page-header'
 import { Tabs } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -7,12 +6,12 @@ import { EmptyState, ErrorState } from '@/components/ui/states'
 import { DataTable, type Column } from '@/components/ui/table'
 import { StatusBadge } from '@/components/ui/badge'
 import { ReportFilterBar } from '@/components/reports/report-filter-bar'
-import { requireEmployeeSession } from '@/lib/supabase/session'
+import { getSessionEmployee, requireEmployeeSession } from '@/lib/supabase/session'
 import { myReportQuerySchema } from '@/lib/validations/report'
 import { attendanceReport, leaveReport, payrollReport } from '@/services/report.service'
-import { listAttendance, type AttendanceRow } from '@/features/attendance/queries'
-import { listLeave, type LeaveRow } from '@/features/leave/queries'
-import { listPayrolls, type PayrollRow } from '@/features/payroll/queries'
+import { listAttendance, type AttendanceRow } from '@/services/attendance.service'
+import { listLeave, type LeaveRow } from '@/services/leave.service'
+import { listPayrolls, type PayrollRow } from '@/services/payroll.service'
 import { formatCurrency, formatDate, formatDuration, formatPeriod, formatTime } from '@/lib/formatters'
 
 export const metadata: Metadata = { title: 'My Reports' }
@@ -55,19 +54,13 @@ export default async function MyReportsPage({ searchParams }: { searchParams: Pr
   const session = await requireEmployeeSession()
   const query = myReportQuerySchema.catch({ type: 'attendance' }).parse(await searchParams)
 
-  const { data: employee } = await session.supabase
-    .from('employees')
-    .select('id')
-    .eq('user_id', session.userId)
-    .maybeSingle()
+  const employee = await getSessionEmployee(session)
 
   if (!employee) {
     return (
-      <EmployeeShell title="My Reports">
-        <Card>
-          <EmptyState title="No employee record" description="Contact HR to link your account." />
-        </Card>
-      </EmployeeShell>
+      <Card>
+        <EmptyState title="No employee record" description="Contact HR to link your account." />
+      </Card>
     )
   }
 
@@ -156,7 +149,11 @@ export default async function MyReportsPage({ searchParams }: { searchParams: Pr
       content = (
         <div className="space-y-4">
           <StatGrid>
-            <StatCard label="Total Net Salary" value={formatCurrency(summary.total_net_salary)} hint="Published payslips" />
+            <StatCard
+              label="Total Net Salary"
+              value={formatCurrency(summary.total_net_salary)}
+              hint="Published payslips"
+            />
             <StatCard label="Average Payslip" value={formatCurrency(summary.average_payroll)} />
             <StatCard label="Total Allowance" value={formatCurrency(summary.total_allowance)} />
             <StatCard label="Total Deduction" value={formatCurrency(summary.total_deduction)} />
@@ -167,7 +164,12 @@ export default async function MyReportsPage({ searchParams }: { searchParams: Pr
               columns={payrollColumns}
               rows={detail.items}
               rowKey={(row) => row.id}
-              empty={<EmptyState title="No published payslips" description="Payslips appear here once HR publishes a period." />}
+              empty={
+                <EmptyState
+                  title="No published payslips"
+                  description="Payslips appear here once HR publishes a period."
+                />
+              }
             />
           </Card>
         </div>
@@ -183,16 +185,14 @@ export default async function MyReportsPage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <EmployeeShell title="My Reports">
-      <div className="space-y-4">
-        <PageHeader title="My Reports" description="Your own attendance, leave and payroll history." />
+    <div className="space-y-4">
+      <PageHeader title="My Reports" description="Your own attendance, leave and payroll history." />
 
-        <Tabs items={tabs} active={query.type} />
+      <Tabs items={tabs} active={query.type} />
 
-        <ReportFilterBar type={query.type} current={query} basePath="/employee/reports" />
+      <ReportFilterBar type={query.type} current={query} basePath="/employee/reports" />
 
-        {content}
-      </div>
-    </EmployeeShell>
+      {content}
+    </div>
   )
 }

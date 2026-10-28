@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AppError } from '@/lib/api-response'
 import { getAdminClient } from '@/lib/supabase/admin'
+import { netSalary, payrollPeriodKey } from '@/lib/payroll'
 import { dbError } from '@/lib/utils/db-error'
 import { paginationMeta, range } from '@/lib/utils/query'
 import type {
@@ -13,17 +14,31 @@ import type { Payroll } from '@/types'
 import { logActivity } from '@/services/audit.service'
 import { notify } from '@/services/notification.service'
 
-const PAYROLL_SELECT = '*, employees!inner(id, employee_code, full_name, position, user_id, departments(id, name))'
+export const PAYROLL_SELECT =
+  '*, employees!inner(id, full_name, employee_code, position, user_id, department_id, departments(id, name))'
 
-/** PRD section 34. Money is rounded to 2 decimals to avoid float drift. */
-export function netSalary(input: {
+export type PayrollRow = {
+  id: string
+  employee_id: string
+  period_month: number
+  period_year: number
   base_salary: number
   allowance: number
   bonus: number
   deduction: number
-}): number {
-  const net = input.base_salary + input.allowance + input.bonus - input.deduction
-  return Math.round(net * 100) / 100
+  net_salary: number
+  status: string
+  published_at: string | null
+  created_at: string
+  employees: {
+    id: string
+    full_name: string
+    employee_code: string
+    position: string | null
+    user_id: string | null
+    department_id: string | null
+    departments: { id: string; name: string } | null
+  }
 }
 
 export async function listPayrolls(
@@ -42,12 +57,28 @@ export async function listPayrolls(
   if (query.period_year) request = request.eq('period_year', query.period_year)
   if (query.status) request = request.eq('status', query.status)
 
-  const { data, error, count } = await request
+const { data, error, count } = await request
     .order(query.sort, { ascending: query.order === 'asc' })
+    // Employee name is the tiebreaker so equal periods still read alphabetically.
+    .order('full_name', { ascending: true, foreignTable: 'employees' })
     .range(from, to)
 
   if (error) throw dbError(error)
-  return { items: data, pagination: paginationMeta(query.page, query.limit, count ?? 0) }
+
+  return {
+    items: (data ?? []) as PayrollRow[],
+    pagination: paginationMeta(query.page, query.limit, count ?? 0),
+  }
+}
+
+/** The joined row behind the payroll detail and payslip pages. */
+export async function getPayrollById(sb: SupabaseClient, id: string): Promise<PayrollRow> {
+  const { data, error } = await sb.from('payrolls').select(PAYROLL_SELECT).eq('id', id).maybeSingle()
+
+  if (error) throw dbError(error)
+  if (!data) throw new AppError('PAYROLL_NOT_FOUND', 'Payroll not found', 404)
+
+  return data as PayrollRow
 }
 
 /** PRD section 34, one employee per call. */
@@ -286,12 +317,12 @@ export async function getPayslip(sb: SupabaseClient, id: string) {
   if (error) throw dbError(error)
   if (!data) throw new AppError('PAYROLL_NOT_FOUND', 'Payroll not found', 404)
 
-  const row = data as Payroll & { employees: { employee_code: string; full_name: string; position: string; departments: { name: string } | null } }
+const row = data as PayrollRow
 
   return {
     payroll: {
       id: row.id,
-      period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
+      period: payrollPeriodKey(row.period_month, row.period_year),
       period_month: row.period_month,
       period_year: row.period_year,
       base_salary: row.base_salary,
@@ -302,20 +333,11 @@ export async function getPayslip(sb: SupabaseClient, id: string) {
       status: row.status,
       published_at: row.published_at,
     },
-    employee: {
+employee: {
       employee_code: row.employees.employee_code,
       full_name: row.employees.full_name,
       position: row.employees.position,
       department: row.employees.departments?.name ?? null,
     },
   }
-}
-
-export async function getPayrollById(sb: SupabaseClient, id: string): Promise<Payroll> {
-  const { data, error } = await sb.from('payrolls').select('*').eq('id', id).maybeSingle()
-
-  if (error) throw dbError(error)
-  if (!data) throw new AppError('PAYROLL_NOT_FOUND', 'Payroll not found', 404)
-
-  return data as Payroll
 }

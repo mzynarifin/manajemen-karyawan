@@ -15,11 +15,17 @@ import type {
 import type { Employee } from '@/types'
 import { logActivity } from '@/services/audit.service'
 
-const EMPLOYEE_SELECT = '*, departments(id, name)'
+/** Account email rides along for the list and detail tables. */
+export const EMPLOYEE_SELECT = '*, departments(id, name), profiles(email, avatar_url)'
 const SORTABLE = ['created_at', 'full_name', 'join_date', 'employee_code']
 
+export type EmployeeRow = Omit<Employee, 'departments' | 'profiles'> & {
+  departments: { id: string; name: string } | null
+  profiles: { email: string; avatar_url: string | null } | null
+}
+
 export async function listEmployees(sb: SupabaseClient, query: EmployeeQuery) {
-  const sort = resolveSort(query.sort, query.order, SORTABLE, 'created_at')
+  const sort = resolveSort(query.sort, query.order, SORTABLE, 'full_name')
   const { from, to } = range(query.page, query.limit)
 
   let request = sb.from('employees').select(EMPLOYEE_SELECT, { count: 'exact' })
@@ -34,17 +40,51 @@ export async function listEmployees(sb: SupabaseClient, query: EmployeeQuery) {
     .range(from, to)
 
   if (error) throw dbError(error)
-  return { items: data, pagination: paginationMeta(query.page, query.limit, count ?? 0) }
+
+  return {
+    items: (data ?? []) as EmployeeRow[],
+    pagination: paginationMeta(query.page, query.limit, count ?? 0),
+  }
 }
 
-export async function getEmployeeById(sb: SupabaseClient, id: string): Promise<Employee> {
+export async function getEmployeeById(sb: SupabaseClient, id: string): Promise<EmployeeRow> {
   const { data, error } = await sb.from('employees').select(EMPLOYEE_SELECT).eq('id', id).maybeSingle()
 
   if (error) throw dbError(error)
   // RLS hides other employees' rows, so a missing row is a 404 either way.
   if (!data) throw new AppError('EMPLOYEE_NOT_FOUND', 'Employee not found', 404)
 
-  return data as Employee
+  return data as EmployeeRow
+}
+
+/** Slim rows for the payroll batch picker and the department filters. */
+export type ActiveEmployee = {
+  id: string
+  full_name: string
+  employee_code: string
+  position: string | null
+  base_salary: number
+  department_id: string | null
+  departments: { id: string; name: string } | null
+}
+
+export async function listActiveEmployees(
+  sb: SupabaseClient,
+  search?: string,
+  limit = 200,
+): Promise<ActiveEmployee[]> {
+  let request = sb
+    .from('employees')
+    .select('id, full_name, employee_code, position, base_salary, department_id, departments(id, name)')
+    .eq('status', 'active')
+    .order('full_name')
+    .limit(limit)
+
+  if (search) request = request.or(orSearch(['full_name', 'employee_code'], search))
+
+  const { data, error } = await request
+  if (error) throw dbError(error)
+  return (data ?? []) as unknown as ActiveEmployee[]
 }
 
 /**
@@ -123,7 +163,7 @@ export async function updateEmployee(
   id: string,
   input: EmployeeUpdateInput,
   actorUserId: string,
-): Promise<Employee> {
+): Promise<EmployeeRow> {
   const admin = getAdminClient()
   await getEmployeeById(admin, id)
 
@@ -144,7 +184,7 @@ export async function updateEmployee(
     description: `Updated ${JSON.stringify(input)}`,
   })
 
-  return data as Employee
+  return data as EmployeeRow
 }
 
 /** PRD section 11 + 58: soft delete, history stays queryable. */
@@ -152,7 +192,7 @@ export async function setEmployeeActive(
   id: string,
   active: boolean,
   actorUserId: string,
-): Promise<Employee> {
+): Promise<EmployeeRow> {
   const admin = getAdminClient()
   const employee = await getEmployeeById(admin, id)
 
@@ -182,7 +222,7 @@ export async function setEmployeeActive(
     description: `${active ? 'Reactivated' : 'Deactivated'} ${employee.employee_code}`,
   })
 
-  return data as Employee
+  return data as EmployeeRow
 }
 
 /** PRD section 57: employees may only edit phone and address. */
@@ -190,7 +230,7 @@ export async function updateEmployeeSelf(
   sb: SupabaseClient,
   employee: Employee,
   input: EmployeeSelfUpdateInput,
-): Promise<Employee> {
+): Promise<EmployeeRow> {
   const { data, error } = await sb
     .from('employees')
     .update({ ...input })
@@ -199,7 +239,7 @@ export async function updateEmployeeSelf(
     .single()
 
   if (error) throw dbError(error)
-  return data as Employee
+  return data as EmployeeRow
 }
 
 /**

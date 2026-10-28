@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { initialSchema, paginationSchema, searchSchema, sortOrderSchema, uuidSchema } from '@/lib/validations/common'
+import { paginationSchema, searchSchema, sortOrderSchema, uuidSchema } from '@/lib/validations/common'
 
 const optionalText = (max: number) => z.string().trim().max(max).optional()
 
@@ -60,7 +60,7 @@ export const employeeUpdateSchema = z
     status: z.enum(['active', 'inactive']).optional(),
     work_start: clockSchema,
     work_end: clockSchema,
-    break_minutes: z.coerce.number().int().min(0).max(480).optional(),
+    break_minutes: breakSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' })
   .refine(workHoursOk, WORK_HOURS_ERROR)
@@ -85,9 +85,9 @@ export const employeeQuerySchema = paginationSchema.extend({
   department_id: uuidSchema.optional(),
   status: z.enum(['active', 'inactive']).optional(),
   employment_type: z.enum(['permanent', 'contract']).optional(),
-  initial: initialSchema,
-  sort: z.enum(['created_at', 'full_name', 'join_date', 'employee_code']).default('created_at'),
-  order: sortOrderSchema,
+  sort: z.enum(['created_at', 'full_name', 'join_date', 'employee_code']).default('full_name'),
+  // Alphabetical by name out of the box, so the list needs no clicking to read.
+  order: sortOrderSchema.default('asc'),
 })
 
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>

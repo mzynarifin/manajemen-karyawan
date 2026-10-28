@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button'
 import { CurrencyInput, Field, Input, Select } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { createPayrollBatchAction, type PayrollBatchItem } from '@/features/payroll/actions'
-import { initialOf, initialsOf } from '@/lib/utils/initials'
 import { formatCurrency } from '@/lib/formatters'
+import { netSalary, periodMonthOptions, periodYearOptions } from '@/lib/payroll'
 
 const schema = z.object({
   period_month: z.string().min(1, 'Month is required.'),
@@ -19,13 +19,6 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
-
-const MONTHS = Array.from({ length: 12 }, (_, index) => ({
-  value: String(index + 1),
-  label: new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(Date.UTC(2024, index, 1))),
-}))
-
-const YEARS = [2026, 2025, 2024]
 
 type EmployeeOption = {
   id: string
@@ -60,13 +53,14 @@ function emptyRow(employee: EmployeeOption): Row {
   }
 }
 
+/** Same rounding as the server, so the preview never disagrees with the save. */
 function rowNet(row: Row) {
-  return (
-    Number(row.base_salary || 0) +
-    Number(row.allowance || 0) +
-    Number(row.bonus || 0) -
-    Number(row.deduction || 0)
-  )
+  return netSalary({
+    base_salary: Number(row.base_salary || 0),
+    allowance: Number(row.allowance || 0),
+    bonus: Number(row.bonus || 0),
+    deduction: Number(row.deduction || 0),
+  })
 }
 
 /** PRD section 34: pick many employees, one click, one row each with own amounts. */
@@ -78,7 +72,7 @@ export function PayrollCreateForm({ employees, departments, defaultEmployeeId }:
   const [summary, setSummary] = useState<BatchSummary | null>(null)
   const [search, setSearch] = useState('')
   const [departmentId, setDepartmentId] = useState('')
-  const [initial, setInitial] = useState('')
+
   // Amounts live outside react-hook-form: they are keyed by employee and must
   // survive ticking and unticking other people.
   const [rows, setRows] = useState<Record<string, Row>>(() =>
@@ -103,21 +97,20 @@ export function PayrollCreateForm({ employees, departments, defaultEmployeeId }:
     [employees, rows],
   )
 
-  const visible = employees.filter((employee) => {
-      if (departmentId && employee.department_id !== departmentId) return false
-      if (initial && initialOf(employee.full_name) !== initial) return false
-      const term = search.trim().toLowerCase()
-      if (!term) return true
-      return `${employee.full_name} ${employee.employee_code} ${employee.position ?? ''}`.toLowerCase().includes(term)
-    })
+  const visible = useMemo(() => {
+    const term = search.trim().toLowerCase()
 
-  // Scoped to what the other filters already allow, so a greyed-out letter
-  // really has nobody behind it.
-  const availableInitials = initialsOf(
-    employees
+    return employees
       .filter((employee) => !departmentId || employee.department_id === departmentId)
-      .map((employee) => employee.full_name),
-  )
+      .filter((employee) => {
+        if (!term) return true
+        return `${employee.full_name} ${employee.employee_code} ${employee.position ?? ''}`
+          .toLowerCase()
+          .includes(term)
+      })
+      .sort((a, b) => a.full_name.localeCompare(b.full_name))
+  }, [employees, departmentId, search])
+
 
   const totalNet = selected.reduce((sum, employee) => sum + rowNet(rows[employee.id]), 0)
   const negativeRows = selected.filter((employee) => rowNet(rows[employee.id]) < 0)
@@ -264,44 +257,6 @@ export function PayrollCreateForm({ employees, departments, defaultEmployeeId }:
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1">
-          <span className="mr-1 text-[13px] text-muted">Name</span>
-          <button
-            type="button"
-            onClick={() => setInitial('')}
-            aria-current={initial ? undefined : 'true'}
-            className={`h-8 rounded-md px-2.5 text-[13px] transition-colors duration-150 ${
-              initial ? 'text-muted hover:bg-canvas hover:text-ink' : 'bg-brand-700 font-medium text-white'
-            }`}
-          >
-            All
-          </button>
-          {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => {
-            const empty = !availableInitials.includes(letter)
-            const isActive = initial === letter
-
-            return (
-              <button
-                key={letter}
-                type="button"
-                onClick={() => setInitial(letter)}
-                disabled={empty}
-                aria-current={isActive ? 'true' : undefined}
-                title={empty ? `No employee starts with ${letter}` : undefined}
-                className={`h-8 w-8 rounded-md text-[13px] tabular-nums transition-colors duration-150 ${
-                  isActive
-                    ? 'bg-brand-700 font-medium text-white'
-                    : empty
-                      ? 'cursor-not-allowed text-muted/40'
-                      : 'text-muted hover:bg-canvas hover:text-ink'
-                }`}
-              >
-                {letter}
-              </button>
-            )
-          })}
-        </div>
-
         <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-line">
           {visible.length === 0 ? (
             <p className="px-3 py-6 text-center text-[13px] text-muted">No employee matches that search.</p>
@@ -344,7 +299,7 @@ export function PayrollCreateForm({ employees, departments, defaultEmployeeId }:
           <Field label="Month" required error={errors.period_month?.message}>
             {(props) => (
               <Select {...props} {...register('period_month')}>
-                {MONTHS.map((month) => (
+{periodMonthOptions().map((month) => (
                   <option key={month.value} value={month.value}>
                     {month.label}
                   </option>
@@ -356,9 +311,9 @@ export function PayrollCreateForm({ employees, departments, defaultEmployeeId }:
           <Field label="Year" required error={errors.period_year?.message}>
             {(props) => (
               <Select {...props} {...register('period_year')}>
-                {YEARS.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
+{periodYearOptions().map((year) => (
+                  <option key={year.value} value={year.value}>
+                    {year.label}
                   </option>
                 ))}
               </Select>

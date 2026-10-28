@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
+import { periodMonthOptions, periodYearOptions } from '@/lib/payroll'
 
 type Query = Record<string, string | number | undefined>
 
@@ -13,17 +14,6 @@ type Props = {
   type: string
   current: Query
   basePath: string
-}
-
-const MONTHS = Array.from({ length: 12 }, (_, index) => ({
-  value: String(index + 1),
-  label: new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(Date.UTC(2024, index, 1))),
-}))
-
-/** Current year plus the three before it, so the list never goes stale. */
-function years() {
-  const thisYear = new Date().getFullYear()
-  return [0, 1, 2, 3].map((offset) => String(thisYear - offset))
 }
 
 /** Only the filters that make sense for the active report tab. */
@@ -54,11 +44,15 @@ function controlsFor(type: string): Control[] {
 
   if (type === 'payroll') {
     return [
-      { name: 'period_month', label: 'Month', options: [{ value: '', label: 'All months' }, ...MONTHS] },
+      {
+        name: 'period_month',
+        label: 'Month',
+        options: [{ value: '', label: 'All months' }, ...periodMonthOptions()],
+      },
       {
         name: 'period_year',
         label: 'Year',
-        options: [{ value: '', label: 'All years' }, ...years().map((year) => ({ value: year, label: year }))],
+        options: [{ value: '', label: 'All years' }, ...periodYearOptions(3)],
       },
     ]
   }

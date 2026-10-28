@@ -1,6 +1,34 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '@/lib/supabase/admin'
-import type { NotificationType } from '@/types'
+import { dbError } from '@/lib/utils/db-error'
+import { paginationMeta, range } from '@/lib/utils/query'
+import type { Notification, NotificationType } from '@/types'
+
+export type NotificationListQuery = {
+  userId: string
+  page: number
+  limit: number
+  isRead?: boolean
+  type?: NotificationType
+}
+
+export async function listNotifications(sb: SupabaseClient, query: NotificationListQuery) {
+  const { from, to } = range(query.page, query.limit)
+
+  let request = sb.from('notifications').select('*', { count: 'exact' }).eq('user_id', query.userId)
+
+  if (query.isRead !== undefined) request = request.eq('is_read', query.isRead)
+  if (query.type) request = request.eq('type', query.type)
+
+  const { data, error, count } = await request.order('created_at', { ascending: false }).range(from, to)
+
+  if (error) throw dbError(error)
+
+  return {
+    items: (data ?? []) as Notification[],
+    pagination: paginationMeta(query.page, query.limit, count ?? 0),
+  }
+}
 
 export type NotifyInput = {
   userId: string

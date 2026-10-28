@@ -1,15 +1,14 @@
 import type { Metadata } from 'next'
-import { EmployeeShell } from '@/components/layout/shell'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardBody } from '@/components/ui/card'
 import { DataTable, type Column } from '@/components/ui/table'
 import { StatusBadge } from '@/components/ui/badge'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState, ErrorState } from '@/components/ui/states'
-import { requireEmployeeSession } from '@/lib/supabase/session'
+import { getSessionEmployee, requireEmployeeSession } from '@/lib/supabase/session'
 import { payrollQuerySchema } from '@/lib/validations/payroll'
 import { formatCurrency, formatDate, formatPeriod } from '@/lib/formatters'
-import { listPayrolls, type PayrollRow } from '@/features/payroll/queries'
+import { listPayrolls, type PayrollRow } from '@/services/payroll.service'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Payslips' }
@@ -46,19 +45,13 @@ export default async function PayslipListPage({ searchParams }: { searchParams: 
   const params = await searchParams
   const query = payrollQuerySchema.parse(params)
 
-  const { data: employee } = await session.supabase
-    .from('employees')
-    .select('id')
-    .eq('user_id', session.userId)
-    .maybeSingle()
+  const employee = await getSessionEmployee(session)
 
   if (!employee) {
     return (
-      <EmployeeShell title="Payslips">
-        <Card>
-          <EmptyState title="No employee record" description="Contact HR to link your account." />
-        </Card>
-      </EmployeeShell>
+      <Card>
+        <EmptyState title="No employee record" description="Contact HR to link your account." />
+      </Card>
     )
   }
 
@@ -67,50 +60,37 @@ export default async function PayslipListPage({ searchParams }: { searchParams: 
   )
 
   return (
-    <EmployeeShell title="Payslips">
-      <div className="space-y-4">
-        <PageHeader title="Payslips" description="Published payslips from your payroll records." />
+    <div className="space-y-4">
+      <PageHeader title="Payslips" description="Published payslips from your payroll records." />
 
-        <Card>
-          <CardBody>
-            <p className="text-[13px] text-muted">
-              Draft payroll is not visible here. You will get a notification as soon as a period is published.
-            </p>
-          </CardBody>
+      <Card>
+        <CardBody>
+          <p className="text-[13px] text-muted">
+            Draft payroll is not visible here. You will get a notification as soon as a period is published.
+          </p>
+        </CardBody>
 
-          {!records ? (
-            <ErrorState title="Unable to load payslips" />
-          ) : (
-            <>
-              <DataTable
-                columns={columns}
-                rows={records.items}
-                rowKey={(row) => row.id}
-                empty={
-                  <EmptyState
-                    title="No payslips yet"
-                    description="Published payslips will appear here."
-                  />
-                }
-              />
-              <Pagination
-                page={query.page}
-                limit={20}
-                total={records.pagination.total}
-                label="payslips"
-                buildHref={(page) => {
-                  const next = new URLSearchParams()
-                  for (const [key, value] of Object.entries(params)) {
-                    if (typeof value === 'string' && value && key !== 'page') next.set(key, value)
-                  }
-                  next.set('page', String(page))
-                  return `/employee/payslip?${next.toString()}`
-                }}
-              />
-            </>
-          )}
-        </Card>
-      </div>
-    </EmployeeShell>
+        {!records ? (
+          <ErrorState title="Unable to load payslips" />
+        ) : (
+          <>
+            <DataTable
+              columns={columns}
+              rows={records.items}
+              rowKey={(row) => row.id}
+              empty={<EmptyState title="No payslips yet" description="Published payslips will appear here." />}
+            />
+            <Pagination
+              page={query.page}
+              limit={20}
+              total={records.pagination.total}
+              label="payslips"
+              basePath="/employee/payslip"
+              searchParams={params}
+            />
+          </>
+        )}
+      </Card>
+    </div>
   )
 }

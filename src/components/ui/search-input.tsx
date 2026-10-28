@@ -6,19 +6,21 @@ import { Search, X } from 'lucide-react'
 
 type Props = {
   placeholder?: string
-  paramName?: string
   className?: string
 }
+
+/** Every list schema reads the term from this param name. */
+const PARAM_NAME = 'search'
 
 /**
  * PRD section 20 + 68: debounced search that writes to the URL, so results
  * stay shareable and the server component does the filtering.
  */
-export function SearchInput({ placeholder = 'Search...', paramName = 'search', className = '' }: Props) {
+export function SearchInput({ placeholder = 'Search...', className = '' }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const urlValue = params.get(paramName) ?? ''
+  const urlValue = params.get(PARAM_NAME) ?? ''
 
   const [value, setValue] = useState(urlValue)
 
@@ -29,14 +31,14 @@ export function SearchInput({ placeholder = 'Search...', paramName = 'search', c
 
     const timer = setTimeout(() => {
       const next = new URLSearchParams(params.toString())
-      if (value) next.set(paramName, value)
-      else next.delete(paramName)
+      if (value) next.set(PARAM_NAME, value)
+      else next.delete(PARAM_NAME)
       next.delete('page')
       router.replace(`${pathname}?${next.toString()}`, { scroll: false })
     }, 350)
 
     return () => clearTimeout(timer)
-  }, [value, urlValue, paramName, params, pathname, router])
+  }, [value, urlValue, params, pathname, router])
 
   return (
     <div className={`relative ${className}`}>

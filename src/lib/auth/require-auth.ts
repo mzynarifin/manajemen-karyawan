@@ -19,14 +19,18 @@ export type AuthContext = {
  */
 export async function requireAuth(req: NextRequest): Promise<AuthContext> {
   const { client } = createRequestClient(req)
-  const { data, error } = await client.auth.getUser()
 
-  if (error || !data.user) throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
+  // Signature verification rather than an Auth-server round trip; the profile
+  // read below is what actually decides whether this account may proceed.
+  const { data, error } = await client.auth.getClaims()
+  const userId = data?.claims?.sub
+
+  if (error || !userId) throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
 
   const { data: profile, error: profileError } = await client
     .from('profiles')
     .select('*')
-    .eq('id', data.user.id)
+    .eq('id', userId)
     .maybeSingle()
 
   if (profileError) throw new AppError('PROFILE_LOOKUP_FAILED', profileError.message, 500)
@@ -50,11 +54,7 @@ export async function requireAdmin(req: NextRequest): Promise<AuthContext> {
 
 /** The caller's own employee record, must exist and be active (PRD section 17). */
 export async function requireOwnEmployee(auth: AuthContext): Promise<Employee> {
-  const { data, error } = await auth.supabase
-    .from('employees')
-    .select('*')
-    .eq('user_id', auth.userId)
-    .maybeSingle()
+  const { data, error } = await auth.supabase.from('employees').select('*').eq('user_id', auth.userId).maybeSingle()
 
   if (error) throw new AppError('EMPLOYEE_LOOKUP_FAILED', error.message, 500)
   if (!data) throw new AppError('EMPLOYEE_NOT_FOUND', 'No employee record for this account', 403)

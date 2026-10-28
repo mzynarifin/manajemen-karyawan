@@ -5,10 +5,36 @@ import { nowInAppTimezone, totalDaysInclusive } from '@/lib/utils/date'
 import { dbError } from '@/lib/utils/db-error'
 import { paginationMeta, range } from '@/lib/utils/query'
 import type { LeaveCreateInput, LeaveQuery } from '@/lib/validations/leave'
-import type { LeaveBalance, LeaveRequest } from '@/types'
+import type { LeaveBalance, LeaveRequest, LeaveStatus } from '@/types'
 import { notifyAdmins } from '@/services/notification.service'
 
-const LEAVE_SELECT = '*, employees!inner(id, full_name, employee_code, department_id)'
+export const LEAVE_SELECT =
+  '*, employees!inner(id, full_name, employee_code, user_id, department_id), profiles!leave_requests_reviewed_by_fkey(full_name)'
+
+const LEAVE_STATUSES = { pending: 1, approved: 1, rejected: 1 } as const
+
+export type LeaveRow = {
+  id: string
+  employee_id: string
+  leave_type: string
+  start_date: string
+  end_date: string
+  total_days: number
+  reason: string
+  status: string
+  rejection_reason: string | null
+  reviewed_at: string | null
+  created_at: string
+  employees: {
+    id: string
+    full_name: string
+    employee_code: string
+    user_id: string | null
+    department_id: string | null
+  }
+  /** The HR admin who reviewed it, joined for the "Reviewed by" table cell. */
+  profiles: { full_name: string } | null
+}
 
 /** PRD section 24 + 25. Status is forced to pending by the insert RLS policy. */
 export async function createLeave(auth: AuthContext, input: LeaveCreateInput): Promise<LeaveRequest> {
@@ -30,7 +56,7 @@ export async function createLeave(auth: AuthContext, input: LeaveCreateInput): P
   }
 
   if (input.leave_type === 'annual') {
-    const balance = await getBalance(auth.supabase, employee.id, Number(input.start_date.slice(0, 4)))
+    const balance = await getLeaveBalance(auth.supabase, employee.id, Number(input.start_date.slice(0, 4)))
     if (!balance) throw new AppError('LEAVE_BALANCE_NOT_FOUND', 'Leave balance not found for that year', 404)
     if (balance.remaining_leave < totalDays) {
       throw new AppError(
@@ -84,11 +110,7 @@ export async function rejectLeave(auth: AuthContext, leaveId: string, reason: st
   return (Array.isArray(data) ? data[0] : data) as LeaveRequest
 }
 
-export async function listLeave(
-  sb: SupabaseClient,
-  query: LeaveQuery,
-  scope: { employeeId?: string },
-) {
+export async function listLeave(sb: SupabaseClient, query: LeaveQuery, scope: { employeeId?: string }) {
   const { from, to } = range(query.page, query.limit)
 
   let request = sb.from('leave_requests').select(LEAVE_SELECT, { count: 'exact' })
@@ -102,22 +124,51 @@ export async function listLeave(
 
   const { data, error, count } = await request
     .order(query.sort, { ascending: query.order === 'asc' })
+    // Employee name is the tiebreaker so equal dates still read alphabetically.
+    .order('full_name', { ascending: true, foreignTable: 'employees' })
     .range(from, to)
 
   if (error) throw dbError(error)
-  return { items: data, pagination: paginationMeta(query.page, query.limit, count ?? 0) }
+
+  return {
+    items: (data ?? []) as LeaveRow[],
+    pagination: paginationMeta(query.page, query.limit, count ?? 0),
+  }
 }
 
-export async function getLeaveById(sb: SupabaseClient, id: string): Promise<LeaveRequest> {
+export async function getLeaveById(sb: SupabaseClient, id: string): Promise<LeaveRow> {
   const { data, error } = await sb.from('leave_requests').select(LEAVE_SELECT).eq('id', id).maybeSingle()
 
   if (error) throw dbError(error)
   if (!data) throw new AppError('LEAVE_NOT_FOUND', 'Leave request not found', 404)
 
-  return data as LeaveRequest
+  return data as LeaveRow
 }
 
-export async function getBalance(
+/** Admin dashboard tiles: how many requests sit in each status. */
+export async function countLeaveByStatus(sb: SupabaseClient) {
+  const statuses = Object.keys(LEAVE_STATUSES) as LeaveStatus[]
+
+  // One round trip per status, but issued together: the old loop awaited each
+  // count in turn, so the dashboard paid three serial network hops here.
+  const counts = await Promise.all(
+    statuses.map((status) =>
+      sb.from('leave_requests').select('id', { count: 'exact', head: true }).eq('status', status),
+    ),
+  )
+
+  const result = {} as Record<LeaveStatus, number>
+  statuses.forEach((status, index) => {
+    const error = counts[index].error
+    if (error) throw dbError(error)
+    result[status] = counts[index].count ?? 0
+  })
+
+  return result
+}
+
+/** Balance is missing until HR grants it, so an absent row is a real answer. */
+export async function getLeaveBalance(
   sb: SupabaseClient,
   employeeId: string,
   year = nowInAppTimezone().year,

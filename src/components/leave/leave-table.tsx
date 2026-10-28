@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/ui/states'
 import { useToast } from '@/components/ui/toast'
 import { approveLeaveAction, rejectLeaveAction } from '@/features/leave/actions'
 import { formatDate, formatDateTime, labelOf, pluralDays } from '@/lib/formatters'
-import type { LeaveRow } from '@/features/leave/queries'
+import type { LeaveRow } from '@/services/leave.service'
 
 const columns: Column<LeaveRow>[] = [
   { key: 'employee', header: 'Employee', cell: (row) => row.employees.full_name },

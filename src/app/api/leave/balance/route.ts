@@ -3,7 +3,7 @@ import { AppError, fail, ok, readQuery } from '@/lib/api-response'
 import { requireAuth, requireOwnEmployee } from '@/lib/auth/require-auth'
 import { parseId } from '@/lib/validations/common'
 import { balanceQuerySchema } from '@/lib/validations/leave'
-import { getBalance } from '@/services/leave.service'
+import { getLeaveBalance } from '@/services/leave.service'
 
 /** Own balance by default; an admin may pass employee_id. */
 export async function GET(req: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       if (own.id !== employeeId) throw new AppError('FORBIDDEN', 'Cannot read another employee balance', 403)
     }
 
-    const balance = await getBalance(auth.supabase, parseId(employeeId), query.year)
+    const balance = await getLeaveBalance(auth.supabase, parseId(employeeId), query.year)
     if (!balance) throw new AppError('LEAVE_BALANCE_NOT_FOUND', 'Leave balance not found', 404)
 
     return ok(balance, 'Leave balance retrieved', { req })

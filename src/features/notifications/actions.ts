@@ -1,15 +1,14 @@
 'use server'
 
-import { actionFailure, actionSuccess, type ActionResult } from '@/lib/action-result'
-import { getSupabase } from '@/lib/supabase/session'
+import { actionFailure, actionSuccess, actionUnauthenticated, type ActionResult } from '@/lib/action-result'
+import { getSession } from '@/lib/supabase/session'
 
 export async function markNotificationReadAction(id: string): Promise<ActionResult> {
-  const supabase = await getSupabase()
+  const session = await getSession()
+  if (!session) return actionUnauthenticated()
 
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('id', id)
+  // RLS already limits the update to the caller's own rows, so no user filter here.
+  const { error } = await session.supabase.from('notifications').update({ is_read: true }).eq('id', id)
 
   if (error) return actionFailure({ message: error.message, error: error.code })
 
@@ -17,15 +16,13 @@ export async function markNotificationReadAction(id: string): Promise<ActionResu
 }
 
 export async function markAllNotificationsReadAction(): Promise<ActionResult> {
-  const supabase = await getSupabase()
+  const session = await getSession()
+  if (!session) return actionUnauthenticated()
 
-  const { data: sessionData } = await supabase.auth.getUser()
-  if (!sessionData.user) return { ok: false, message: 'You need to sign in again.', code: 'AUTH_REQUIRED' }
-
-  const { error } = await supabase
+  const { error } = await session.supabase
     .from('notifications')
     .update({ is_read: true })
-    .eq('user_id', sessionData.user.id)
+    .eq('user_id', session.userId)
     .eq('is_read', false)
 
   if (error) return actionFailure({ message: error.message, error: error.code })
