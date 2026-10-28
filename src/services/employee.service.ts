@@ -5,7 +5,7 @@ import { DEFAULT_ANNUAL_LEAVE } from '@/lib/config'
 import { getAdminClient } from '@/lib/supabase/admin'
 import { dbError } from '@/lib/utils/db-error'
 import { nextEmployeeCode } from '@/lib/utils/employee-code'
-import { orSearch, paginationMeta, range, resolveSort } from '@/lib/utils/query'
+import { orSearch, paginationMeta, range } from '@/lib/utils/query'
 import type {
   EmployeeCreateInput,
   EmployeeQuery,
@@ -17,15 +17,12 @@ import { logActivity } from '@/services/audit.service'
 
 /** Account email rides along for the list and detail tables. */
 export const EMPLOYEE_SELECT = '*, departments(id, name), profiles(email, avatar_url)'
-const SORTABLE = ['created_at', 'full_name', 'join_date', 'employee_code']
-
 export type EmployeeRow = Omit<Employee, 'departments' | 'profiles'> & {
   departments: { id: string; name: string } | null
   profiles: { email: string; avatar_url: string | null } | null
 }
 
 export async function listEmployees(sb: SupabaseClient, query: EmployeeQuery) {
-  const sort = resolveSort(query.sort, query.order, SORTABLE, 'full_name')
   const { from, to } = range(query.page, query.limit)
 
   let request = sb.from('employees').select(EMPLOYEE_SELECT, { count: 'exact' })
@@ -36,7 +33,8 @@ export async function listEmployees(sb: SupabaseClient, query: EmployeeQuery) {
   if (query.employment_type) request = request.eq('employment_type', query.employment_type)
 
   const { data, error, count } = await request
-    .order(sort.column, { ascending: sort.order === 'asc' })
+    .order('full_name', { ascending: true })
+    .order('employee_code', { ascending: true })
     .range(from, to)
 
   if (error) throw dbError(error)

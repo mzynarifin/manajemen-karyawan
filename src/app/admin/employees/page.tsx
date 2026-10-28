@@ -110,7 +110,6 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               columns={columns}
               rows={employees.items}
               rowKey={(row) => row.id}
-              sort={{ column: query.sort, order: query.order }}
               empty={
                 <EmptyState
                   title={

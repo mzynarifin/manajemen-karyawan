@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { paginationSchema, searchSchema, sortOrderSchema, uuidSchema } from '@/lib/validations/common'
+import { paginationSchema, searchSchema, uuidSchema } from '@/lib/validations/common'
 
 const optionalText = (max: number) => z.string().trim().max(max).optional()
 
@@ -85,9 +85,6 @@ export const employeeQuerySchema = paginationSchema.extend({
   department_id: uuidSchema.optional(),
   status: z.enum(['active', 'inactive']).optional(),
   employment_type: z.enum(['permanent', 'contract']).optional(),
-  sort: z.enum(['created_at', 'full_name', 'join_date', 'employee_code']).default('full_name'),
-  // Alphabetical by name out of the box, so the list needs no clicking to read.
-  order: sortOrderSchema.default('asc'),
 })
 
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>
